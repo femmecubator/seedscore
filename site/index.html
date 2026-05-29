@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seedscore v2 (Impact Scorecard)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #185FA5;
+            --secondary: #0C447C;
+            --accent-human: #1D9E75;
+            --accent-systems: #D85A30;
+            --accent-env: #639922;
+            --neutral: #888780;
+            --bg-primary: #ffffff;
+            --bg-secondary: #F1EFE8;
+            --bg-tertiary: #EEEDFE;
+            --border: #D3D1C7;
+            --text-primary: #2C2C2A;
+            --text-secondary: #5F5E5A;
+            --text-light: #B4B2A9;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 16px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-btn {
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+        }
+
+        /* Panels */
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.1);
+        }
+
+        /* Question Card */
+        .question-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 28px;
+            margin-bottom: 24px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .question-header {
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            background: var(--bg-secondary);
+            height: 4px;
+            border-radius: 2px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: var(--primary);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .question-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 12px;
+            line-height: 1.4;
+        }
+
+        .question-context {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 12px;
+            font-style: italic;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-left: 3px solid var(--neutral);
+            border-radius: 4px;
+        }
+
+        /* Radio Options */
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg-primary);
+        }
+
+        .option-label:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--primary);
+        }
+
+        .option-label.survey-option {
+            padding: 16px;
+            flex-direction: column;
+            align-items: flex-start;
+            border: 2px solid var(--border);
+            gap: 0;
+        }
+
+        .option-label.survey-option:hover {
+            border-color: var(--primary);
+            background: var(--bg-tertiary);
+        }
+
+        .option-label.survey-option input[type="radio"] {
+            margin-bottom: 8px;
+            margin-right: 0;
+        }
+
+        input[type="radio"] {
+            margin-right: 12px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        /* Navigation */
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 28px;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--bg-secondary);
+            border-color: var(--primary);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary);
+            border-color: var(--secondary);
+        }
+
+        .btn-export {
+            background: var(--accent-human);
+            color: white;
+            border-color: var(--accent-human);
+            padding: 10px 20px;
+        }
+
+        .btn-export:hover {
+            background: #159b6f;
+        }
+
+        /* Dashboard Styles */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .score-card {
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .score-card.human {
+            border-top-color: var(--accent-human);
+            border-top-width: 4px;
+        }
+
+        .score-card.systems {
+            border-top-color: var(--accent-systems);
+            border-top-width: 4px;
+        }
+
+        .score-card.environment {
+            border-top-color: var(--accent-env);
+            border-top-width: 4px;
+        }
+
+        .score-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 8px 0;
+        }
+
+        .score-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .score-subtitle {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-top: 8px;
+        }
+
+        .breakdown-title {
+            font-weight: 600;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .breakdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            font-size: 13px;
+        }
+
+        .breakdown-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-secondary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .breakdown-bar-fill {
+            height: 100%;
+        }
+
+        .env-metrics {
+            display: flex;
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .metric-box {
+            flex: 1;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .comparison {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 24px;
+        }
+
+        .comparison-title {
+            font-weight: 600;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .comparison-item {
+            margin-bottom: 20px;
+        }
+
+        .comparison-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .comparison-bar {
+            height: 32px;
+            background: var(--primary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .comparison-value {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Report Styles */
+        .report {
+            background: var(--bg-primary);
+            padding: 32px;
+            border-radius: 8px;
+            line-height: 1.8;
+            color: var(--text-primary);
+        }
+
+        .report h2 {
+            font-size: 20px;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .report h2:first-child {
+            margin-top: 0;
+        }
+
+        .report p {
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .report ul {
+            font-size: 14px;
+        }
+
+        .report-metrics {
+            display: flex;
+            justify-content: space-around;
+            gap: 20px;
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .export-section {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .env-metrics {
+                flex-direction: column;
+            }
+
+            .report-metrics {
+                flex-direction: column;
+            }
+
+            .comparison-bar {
+                width: 100%;
+            }
+
+            .question-card {
+                padding: 20px;
+            }
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .tabs,
+            .navigation,
+            .btn,
+            .export-section {
+                display: none;
+            }
+
+            .report {
+                box-shadow: none;
+                border: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Seedscore v2 (Impact Scorecard)</h1>
+            <p class="subtitle">Measure the three-pillar impact of your AI projects (Human • Systems • Environment)</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('project')">Project Setup</button>
+            <button class="tab-btn" onclick="switchTab('assessment')">Assessment</button>
+            <button class="tab-btn" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="tab-btn" onclick="switchTab('report')">Report</button>
+        </div>
+
+        <!-- Project Setup Tab -->
+        <div id="project" class="tab-panel active">
+            <div class="question-card">
+                <div class="question-header">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%;"></div>
+                    </div>
+                    <p class="progress-text">Project Details</p>
+                </div>
+
+                <h2 class="question-title">Tell us about your project</h2>
+
+                <div class="form-group">
+                    <label for="projectName">Project Name</label>
+                    <input type="text" id="projectName" placeholder="e.g., Customer Service Chatbot">
+                </div>
+
+                <div class="form-group">
+                    <label for="projectDesc">Description</label>
+                    <input type="text" id="projectDesc" placeholder="Brief description of your AI project">
+                </div>
+
+                <div class="form-group">
+                    <label for="llmModel">LLM Model Used</label>
+                    <select id="llmModel">
+                        <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
+                        <option value="Claude 3 Opus">Claude 3 Opus</option>
+                        <option value="GPT-4">GPT-4</option>
+                        <option value="GPT-4 Turbo">GPT-4 Turbo</option>
+                        <option value="Llama 2">Llama 2</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="teamSize">Team Size (people)</label>
+                    <input type="number" id="teamSize" placeholder="5" value="5" min="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="projectDays">Project Duration (days)</label>
+                    <input type="number" id="projectDays" placeholder="30" value="30" min="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="inferenceCalls">Est. Inference Calls (30 days)</label>
+                    <input type="number" id="inferenceCalls" placeholder="10000" value="10000" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="apiCost">Est. API Cost</label>
+                    <input type="text" id="apiCost" placeholder="$1,500">
+                </div>
+
+                <div class="form-group">
+                    <label for="outcomes">Key Outcomes / Deliverables</label>
+                    <input type="text" id="outcomes" placeholder="e.g., 40% reduction in support tickets, faster issue resolution">
+                </div>
+
+                <div class="navigation">
+                    <button class="btn" onclick="switchTab('project')" style="visibility: hidden;">← Back</button>
+                    <button class="btn btn-primary" onclick="switchTab('assessment')">Continue →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assessment Tab -->
+        <div id="assessment" class="tab-panel">
+            <div id="assessmentContent"></div>
+            <div class="navigation">
+                <button class="btn" onclick="previousQuestion()">← Back</button>
+                <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()">Next →</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-panel">
+            <div id="dashboardContent"></div>
+            <div class="navigation">
+                <button class="btn" onclick="switchTab('assessment')">← Back</button>
+                <button class="btn btn-primary" onclick="switchTab('report')">View Report →</button>
+            </div>
+        </div>
+
+        <!-- Report Tab -->
+        <div id="report" class="tab-panel">
+            <div id="reportContent"></div>
+            <div class="navigation">
+                <button class="btn" onclick="switchTab('dashboard')">← Back</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Assessment Questions
+        const questions = [
+            {
+                id: 'q1_core_purpose',
+                category: 'human',
+                title: 'Is the solution still aligned with the civic problem it was designed to solve, and can participants articulate why this work matters to their community?',
+                context: 'Strong projects maintain their original purpose and community understanding.',
+                options: [
+                    { value: 0, label: 'Solution has drifted; participants cannot articulate community context' },
+                    { value: 1, label: 'Partial alignment with some community understanding' },
+                    { value: 2, label: 'Strong alignment; participants clearly understand community impact' }
+                ]
+            },
+            {
+                id: 'q2_uplift_skilling',
+                category: 'human',
+                title: 'Did building this tool expand participants\' capabilities and was compensation fair with knowledge-sharing encouraged?',
+                context: 'Projects should grow capabilities and support equitable collaboration.',
+                options: [
+                    { value: 0, label: 'Limited capability growth; unfair compensation or isolated work' },
+                    { value: 1, label: 'Some capability development; partial compensation with some knowledge-sharing' },
+                    { value: 2, label: 'Significant capability expansion; fair compensation with knowledge-sharing' }
+                ]
+            },
+            {
+                id: 'q3_cognitive_autonomy',
+                category: 'human',
+                title: 'Does the team maintain cognitive autonomy, able to explain decisions without relying on AI to regenerate explanations?',
+                context: 'Teams should own and understand their technical decisions.',
+                options: [
+                    { value: 0, label: 'Significant cognitive debt; team relies on AI for explanations' },
+                    { value: 1, label: 'Partial understanding; some reliance on AI for technical explanations' },
+                    { value: 2, label: 'Full cognitive autonomy; team can explain all decisions independently' }
+                ]
+            },
+            {
+                id: 'q4_creative_agency',
+                category: 'human',
+                title: 'Did participants make deliberate choices about tools and approaches, or default to AI suggestions?',
+                context: 'Human judgment should guide tool selection and decision-making.',
+                options: [
+                    { value: 0, label: 'Defaulted to AI suggestions with minimal deliberate choice' },
+                    { value: 1, label: 'Some deliberate choices mixed with reliance on AI defaults' },
+                    { value: 2, label: 'Participants made deliberate, informed choices about tools and approaches' }
+                ]
+            },
+            {
+                id: 'q5_human_judgment',
+                category: 'human',
+                title: 'Is there documented evidence that human judgment was exercised, including moments where AI recommendations were overridden?',
+                context: 'Exercised judgment and override moments demonstrate genuine human agency.',
+                options: [
+                    { value: 0, label: 'No evidence of judgment; AI recommendations were followed without question' },
+                    { value: 1, label: 'Some instances of human judgment; occasional overrides noted' },
+                    { value: 2, label: 'Clear evidence of exercised judgment with documented override moments' }
+                ]
+            },
+            {
+                id: 'q6_reusability_commons',
+                category: 'systems',
+                title: 'Is the code, design, and learnings documented and shareable so others can adopt or adapt without starting from scratch?',
+                context: 'Reusable, well-documented systems reduce future effort and benefit the broader community.',
+                options: [
+                    { value: 0, label: 'Code is undocumented; learnings are isolated or unpublished' },
+                    { value: 1, label: 'Some documentation exists; learnings partially shared' },
+                    { value: 2, label: 'Well-documented with published learnings that others can build upon' }
+                ]
+            },
+            {
+                id: 'q7_quality_harms',
+                category: 'systems',
+                title: 'Were sufficient testing and edge case coverage completed before deployment, and are real-world harms understood and documented?',
+                context: 'Rigorous testing and harm documentation are essential, especially in civic contexts.',
+                options: [
+                    { value: 0, label: 'Minimal testing; harms not documented or understood' },
+                    { value: 1, label: 'Some testing completed; partial harm documentation' },
+                    { value: 2, label: 'Comprehensive testing; harms clearly identified and documented' }
+                ]
+            },
+            {
+                id: 'q8_corporate_autonomy',
+                category: 'systems',
+                title: 'Does the project avoid vendor lock-in and does the community retain meaningful control and autonomy over the tools?',
+                context: 'Community control and platform independence protect against unexpected changes.',
+                options: [
+                    { value: 0, label: 'High vendor lock-in; limited community control' },
+                    { value: 1, label: 'Some independence; partial community control' },
+                    { value: 2, label: 'Strong independence; community retains full autonomy' }
+                ]
+            },
+            {
+                id: 'q9_maintenance_resilience',
+                category: 'systems',
+                title: 'Is there a maintenance plan and documentation sufficient for the tool to survive and evolve without original builders?',
+                context: 'Tools built for longevity require robust documentation and transition planning.',
+                options: [
+                    { value: 0, label: 'No maintenance plan; poor documentation; dependent on original builders' },
+                    { value: 1, label: 'Basic maintenance plan; some documentation exists' },
+                    { value: 2, label: 'Comprehensive maintenance plan and documentation for long-term survival' }
+                ]
+            },
+            {
+                id: 'q10_resilience_longevity',
+                category: 'systems',
+                title: 'Was the tool built for resilience and longevity, not just speed of delivery?',
+                context: 'Intentional design for durability creates sustainable systems.',
+                options: [
+                    { value: 0, label: 'Built for quick delivery; little consideration for longevity' },
+                    { value: 1, label: 'Some resilience features; mixed speed and sustainability focus' },
+                    { value: 2, label: 'Designed for resilience and long-term sustainability' }
+                ]
+            },
+            {
+                id: 'q11_carbon_tracking',
+                category: 'environment',
+                title: 'Did we track and document carbon emissions from inference calls, accounting for the energy source and grid carbon intensity?',
+                context: 'Understanding where electricity comes from is essential for accurate environmental impact assessment.',
+                options: [
+                    { value: 0, label: 'No tracking or documentation of emissions; energy source not considered' },
+                    { value: 1, label: 'Some tracking; partial accounting for energy source' },
+                    { value: 2, label: 'Comprehensive tracking and documentation; energy source accounted for' }
+                ]
+            },
+            {
+                id: 'q12_model_inference',
+                category: 'environment',
+                title: 'Did we deliberately choose the smallest capable model and avoid unnecessary inference calls through efficient prompting and caching?',
+                context: 'Model size and call frequency are the primary levers for reducing environmental impact.',
+                options: [
+                    { value: 0, label: 'Used largest models available; no optimization for efficiency' },
+                    { value: 1, label: 'Some model optimization; partial reduction in unnecessary calls' },
+                    { value: 2, label: 'Right-sized models with optimized inference; efficient prompting and caching' }
+                ]
+            },
+            {
+                id: 'q13_full_resource_accounting',
+                category: 'environment',
+                title: 'Did we account for the full resource cost — including water consumption, compute, and electricity — not just carbon emissions?',
+                context: 'Comprehensive environmental accounting includes water, energy, and computational resources.',
+                options: [
+                    { value: 0, label: 'Only considered carbon; other resource costs ignored' },
+                    { value: 1, label: 'Partial accounting; some resource costs considered' },
+                    { value: 2, label: 'Full accounting of water, compute, and energy impacts' }
+                ]
+            },
+            {
+                id: 'q14_environmental_transparency',
+                category: 'environment',
+                title: 'Did we publish our environmental findings in a replicable format so others can measure and compare their own AI-assisted work?',
+                context: 'Transparency enables collective learning and benchmarking across projects.',
+                options: [
+                    { value: 0, label: 'No publication; findings kept internal or not documented' },
+                    { value: 1, label: 'Some findings shared; limited replicability for others' },
+                    { value: 2, label: 'Findings published in replicable format; enables comparison and learning' }
+                ]
+            },
+            {
+                id: 'q15_mitigation_strategy',
+                category: 'environment',
+                title: 'Do we have a plan to mitigate or offset our environmental impact through carbon offsets, renewable energy commitments, or other means?',
+                context: 'Active mitigation demonstrates commitment to reducing net environmental harm.',
+                options: [
+                    { value: 0, label: 'No mitigation plan or offset strategy' },
+                    { value: 1, label: 'Emerging mitigation plan; some commitment to offset or reduce impact' },
+                    { value: 2, label: 'Clear mitigation strategy with concrete commitments to offset or reduce impact' }
+                ]
+            }
+        ];
+
+        let currentQuestion = 0;
+        let responses = {};
+
+        // Initialize with placeholder responses for dashboard preview
+        function initializePlaceholderResponses() {
+            responses = {
+                'q1_core_purpose': 2,
+                'q2_uplift_skilling': 1,
+                'q3_cognitive_autonomy': 2,
+                'q4_creative_agency': 1,
+                'q5_human_judgment': 2,
+                'q6_reusability_commons': 1,
+                'q7_quality_harms': 2,
+                'q8_corporate_autonomy': 1,
+                'q9_maintenance_resilience': 2,
+                'q10_resilience_longevity': 1,
+                'q11_carbon_tracking': 2,
+                'q12_model_inference': 2,
+                'q13_full_resource_accounting': 1,
+                'q14_environmental_transparency': 1,
+                'q15_mitigation_strategy': 2
+            };
+        }
+        
+        // Initialize on page load
+        initializePlaceholderResponses();
+
+        function togglePillars() {
+            const content = document.getElementById('pillarsContent');
+            const chevron = document.getElementById('pillarsChevron');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'grid';
+                chevron.style.transform = 'rotate(0deg)';
+            } else {
+                content.style.display = 'none';
+                chevron.style.transform = 'rotate(-90deg)';
+            }
+        }
+
+        function switchTab(tabName) {
+            // Hide all panels
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected panel
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            // Generate content for specific tabs
+            if (tabName === 'assessment') {
+                renderQuestion();
+            } else if (tabName === 'dashboard') {
+                renderDashboard();
+            } else if (tabName === 'report') {
+                renderReport();
+            }
+        }
+
+        function renderQuestion() {
+            if (currentQuestion >= questions.length) {
+                switchTab('dashboard');
+                return;
+            }
+
+            const question = questions[currentQuestion];
+            const progress = ((currentQuestion + 1) / questions.length) * 100;
+            const category = question.category;
+            const categoryLabel = category.charAt(0).toUpperCase() + category.slice(1);
+
+            let html = `
+                <div class="question-card">
+                    <div class="question-header">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progress}%;"></div>
+                        </div>
+                        <p class="progress-text">Question ${currentQuestion + 1} of ${questions.length}</p>
+                    </div>
+
+                    <div style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                            ${categoryLabel} Impact
+                        </div>
+                        <h2 class="question-title">${question.title}</h2>
+                    </div>
+
+                    <div class="options">
+            `;
+
+            question.options.forEach((option, index) => {
+                const checked = responses[question.id] == option.value ? 'checked' : '';
+                const optionLabels = ['Not Met', 'Partially Met', 'Met'];
+                const optionLabel = optionLabels[option.value] || option.label;
+                
+                html += `
+                    <label class="option-label survey-option">
+                        <input type="radio" name="q${currentQuestion}" value="${option.value}" ${checked} 
+                               onchange="saveResponse('${question.id}', ${option.value})">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; margin-bottom: 4px;">${optionLabel}</div>
+                            <div style="font-size: 13px; color: var(--text-secondary);">${option.label}</div>
+                        </div>
+                    </label>
+                `;
+            });
+
+            html += '</div></div>';
+
+            document.getElementById('assessmentContent').innerHTML = html;
+
+            // Update button state
+            document.getElementById('nextBtn').textContent = currentQuestion === questions.length - 1 ? 'Finish →' : 'Next →';
+        }
+
+        function saveResponse(questionId, value) {
+            responses[questionId] = value;
+        }
+
+        function nextQuestion() {
+            if (responses[questions[currentQuestion].id] === undefined) {
+                alert('Please answer the question before continuing.');
+                return;
+            }
+            currentQuestion++;
+            if (currentQuestion >= questions.length) {
+                switchTab('dashboard');
+            } else {
+                renderQuestion();
+            }
+        }
+
+        function previousQuestion() {
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                renderQuestion();
+            }
+        }
+
+        function calculateScores() {
+            const categories = {
+                human: { questions: ['q1_core_purpose', 'q2_uplift_skilling', 'q3_cognitive_autonomy', 'q4_creative_agency', 'q5_human_judgment'], values: [] },
+                systems: { questions: ['q6_reusability_commons', 'q7_quality_harms', 'q8_corporate_autonomy', 'q9_maintenance_resilience', 'q10_resilience_longevity'], values: [] },
+                environment: { questions: ['q11_carbon_tracking', 'q12_model_inference', 'q13_full_resource_accounting', 'q14_environmental_transparency', 'q15_mitigation_strategy'], values: [] }
+            };
+
+            for (let cat in categories) {
+                categories[cat].questions.forEach(q => {
+                    if (responses[q] !== undefined) {
+                        categories[cat].values.push(responses[q]);
+                    }
+                });
+                categories[cat].avg = categories[cat].values.length > 0 
+                    ? categories[cat].values.reduce((a, b) => a + b, 0) / categories[cat].values.length 
+                    : 0;
+            }
+
+            return categories;
+        }
+
+        function renderDashboard() {
+            const scores = calculateScores();
+            const llm = document.getElementById('llmModel').value;
+            const inferenceCalls = parseInt(document.getElementById('inferenceCalls').value) || 0;
+
+            const estimatedCO2g = inferenceCalls * 1200 * 0.000014;
+            const estimatedCO2kg = (estimatedCO2g / 1000).toFixed(3);
+
+            let html = `
+                <div style="padding: 0;">
+                    <!-- Section 1: Environment Report (Top) -->
+                    <div style="margin-bottom: 3rem;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1.5rem;">Environment Report</div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 1.5rem;">
+                            <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Estimated CO₂ (30 days)</div>
+                                <div style="font-size: 28px; font-weight: 600; color: var(--accent-env); margin-bottom: 8px;">${estimatedCO2kg} kg</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">metric tons</div>
+                            </div>
+                            <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Inference Calls</div>
+                                <div style="font-size: 28px; font-weight: 600; color: var(--accent-env); margin-bottom: 8px;">${inferenceCalls.toLocaleString()}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">API calls</div>
+                            </div>
+                            <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Model Used</div>
+                                <div style="font-size: 16px; font-weight: 600; color: var(--accent-env); margin-bottom: 8px;">${llm}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">LLM</div>
+                            </div>
+                        </div>
+
+                        <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                            <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 1.5rem;">Efficiency Comparison: AI vs Manual</div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; font-weight: 500;">Development Hours</div>
+                                <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;">
+                                    <div style="height: 32px; background: var(--bg-secondary); border-radius: 6px; overflow: hidden;">
+                                        <div style="height: 100%; width: 20%; background: var(--accent-env); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">60h</div>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-secondary); min-width: 40px;">AI</div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; font-weight: 500;">Manual Alternative</div>
+                                <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;">
+                                    <div style="height: 32px; background: var(--bg-secondary); border-radius: 6px; overflow: hidden;">
+                                        <div style="height: 100%; width: 100%; background: var(--text-light); display: flex; align-items: center; justify-content: center; color: var(--text-primary); font-weight: 600; font-size: 12px;">900h</div>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-secondary); min-width: 40px;">15x</div>
+                                </div>
+                            </div>
+                            <div style="padding: 12px; background: var(--bg-secondary); border-radius: 6px; text-align: center;">
+                                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Efficiency Gain</div>
+                                <div style="font-size: 18px; font-weight: 600; color: var(--accent-env);">15x faster</div>
+                            </div>
+                        </div>
+
+                        <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem;">
+                            <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 1.5rem;">Impact in Real-World Context</div>
+                            <div style="display: grid; gap: 12px; margin-bottom: 1.5rem;">
+                                <div style="padding: 12px; background: var(--bg-secondary); border-left: 4px solid var(--accent-env); border-radius: 6px;">
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 500;">Water Usage</div>
+                                    <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5;">Your ${inferenceCalls.toLocaleString()} API calls used approximately <strong>${Math.round(inferenceCalls / 1000 * 1)} to ${Math.round(inferenceCalls / 1000 * 5)} bottles of water</strong> (500ml each) for data center cooling — roughly the daily consumption of a small family.</div>
+                                </div>
+                                <div style="padding: 12px; background: var(--bg-secondary); border-left: 4px solid var(--accent-env); border-radius: 6px;">
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 500;">Carbon Footprint (${estimatedCO2kg} kg)</div>
+                                    <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5;">Equivalent to driving a car approximately <strong>${Math.round(estimatedCO2kg * 2.5)} miles</strong> or the carbon sequestered by <strong>${Math.round(estimatedCO2kg / 17)} tree seedlings</strong> grown for 10 years.</div>
+                                </div>
+                                <div style="padding: 12px; background: var(--bg-secondary); border-left: 4px solid var(--accent-env); border-radius: 6px;">
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 500;">Energy Equivalent</div>
+                                    <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5;">Your inference calls consumed energy roughly equivalent to running a <strong>microwave for ${Math.round(estimatedCO2kg * 0.6)} to ${Math.round(estimatedCO2kg * 0.9)} hours</strong> — significantly less than manual alternatives.</div>
+                                </div>
+                            </div>
+                            <div style="padding-top: 12px; border-top: 0.5px solid var(--border); font-size: 11px; color: var(--text-secondary);">
+                                <strong>Source:</strong> <a href="https://www.eesi.org/articles/view/data-centers-and-water-consumption" style="color: var(--text-secondary); text-decoration: none; border-bottom: 1px solid var(--text-secondary);" target="_blank">EESI: Data Centers and Water Consumption</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Impact Pillars (Collapsible) -->
+                    <div style="margin-bottom: 3rem; border-top: 2px solid var(--border); padding-top: 3rem;">
+                        <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; overflow: hidden;">
+                            <button id="pillarsToggle" onclick="togglePillars()" style="width: 100%; padding: 1.5rem; background: transparent; border: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; text-align: left;">
+                                <div style="font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Impact Pillars</div>
+                                <div id="pillarsChevron" style="font-size: 16px; color: var(--text-secondary); transition: transform 0.3s ease;">▼</div>
+                            </button>
+                            <div id="pillarsContent" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 0 1.5rem 1.5rem;">
+                                <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Human Impact</div>
+                                    <div style="font-size: 32px; font-weight: 600; color: var(--accent-human); margin-bottom: 8px;">${scores.human.avg.toFixed(1)}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">out of 2.0</div>
+                                </div>
+                                <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Systems Impact</div>
+                                    <div style="font-size: 32px; font-weight: 600; color: var(--accent-systems); margin-bottom: 8px;">${scores.systems.avg.toFixed(1)}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">out of 2.0</div>
+                                </div>
+                                <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Environment</div>
+                                    <div style="font-size: 32px; font-weight: 600; color: var(--accent-env); margin-bottom: 8px;">${scores.environment.avg.toFixed(1)}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">out of 2.0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Questions by Category -->
+                    <div style="border-top: 2px solid var(--border); padding-top: 3rem;">
+            `;
+
+            const categoryInfo = {
+                human: { 
+                    color: 'var(--accent-human)', 
+                    label: 'Human Impact',
+                    startQ: 1,
+                    questions: ['q1_core_purpose', 'q2_uplift_skilling', 'q3_cognitive_autonomy', 'q4_creative_agency', 'q5_human_judgment']
+                },
+                systems: { 
+                    color: 'var(--accent-systems)', 
+                    label: 'Systems Impact',
+                    startQ: 6,
+                    questions: ['q6_reusability_commons', 'q7_quality_harms', 'q8_corporate_autonomy', 'q9_maintenance_resilience', 'q10_resilience_longevity']
+                },
+                environment: { 
+                    color: 'var(--accent-env)', 
+                    label: 'Environment',
+                    startQ: 11,
+                    questions: ['q11_carbon_tracking', 'q12_model_inference', 'q13_full_resource_accounting', 'q14_environmental_transparency', 'q15_mitigation_strategy']
+                }
+            };
+
+            ['human', 'systems', 'environment'].forEach((category, idx) => {
+                const info = categoryInfo[category];
+                const catQuestions = questions.filter(q => q.category === category);
+
+                html += `
+                    <div style="margin-bottom: ${idx === 2 ? '0' : '3rem'};">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem;">
+                            <div style="width: 4px; height: 24px; background: ${info.color}; border-radius: 2px;"></div>
+                            <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">${info.label}</div>
+                        </div>
+
+                        <div style="display: grid; gap: 10px; margin-bottom: 1.5rem;">
+                `;
+
+                catQuestions.forEach((question, qIdx) => {
+                    const response = responses[question.id];
+                    const questionNumber = info.startQ + qIdx;
+                    const displayScore = response !== undefined ? response.toFixed(1) : '—';
+
+                    html += `
+                        <div style="display: grid; grid-template-columns: 1fr 70px; gap: 16px; align-items: center; padding: 14px 16px; background: var(--bg-secondary); border-radius: 6px;">
+                            <div style="font-size: 14px; color: var(--text-primary);">
+                                <span style="font-weight: 600; color: ${info.color};">Q${questionNumber}:</span> ${question.title}
+                            </div>
+                            <div style="text-align: right; font-weight: 600; font-size: 14px; color: ${info.color};">${displayScore}</div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+
+                        <div style="padding: 14px 16px; background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 6px; text-align: center;">
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; font-weight: 500;">Category Average</div>
+                            <div style="font-size: 20px; font-weight: 600; color: ${info.color};">${scores[category].avg.toFixed(1)} / 2.0</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('dashboardContent').innerHTML = html;
+        }
+
+        function renderReport() {
+            const scores = calculateScores();
+            const projectName = document.getElementById('projectName').value;
+            const projectDesc = document.getElementById('projectDesc').value;
+            const llm = document.getElementById('llmModel').value;
+            const apiCost = document.getElementById('apiCost').value;
+            const outcomes = document.getElementById('outcomes').value;
+            const inferenceCalls = parseInt(document.getElementById('inferenceCalls').value) || 0;
+
+            const estimatedCO2g = inferenceCalls * 1200 * 0.000014;
+            const estimatedCO2kg = (estimatedCO2g / 1000).toFixed(3);
+
+            // Generate interpretation
+            const overallScore = (scores.human.avg + scores.systems.avg + scores.environment.avg) / 3;
+            let interpretation = '';
+            if (overallScore >= 1.5) {
+                interpretation = 'This project demonstrates strong impact across human, systems, and environmental dimensions. The integration of AI is thoughtful, sustainable, and beneficial.';
+            } else if (overallScore >= 1) {
+                interpretation = 'This project shows balanced impact with some areas of strength and opportunity for improvement. Consider addressing the lower-scoring dimensions.';
+            } else {
+                interpretation = 'This project would benefit from closer alignment with impact principles. Review opportunities to enhance human agency, system resilience, and environmental efficiency.';
+            }
+
+            let html = `
+                <div class="report">
+                    <h2>Impact Assessment Report</h2>
+                    <p><strong>Project:</strong> ${projectName}</p>
+                    <p><strong>Description:</strong> ${projectDesc}</p>
+                    <p><strong>LLM Used:</strong> ${llm}</p>
+                    <p><strong>Generated:</strong> ${new Date().toLocaleDateString()}</p>
+
+                    <h2>Executive Summary</h2>
+                    <p>${interpretation}</p>
+
+                    <h2>Three-Pillar Scores</h2>
+                    <div class="report-metrics">
+                        <div style="text-align: center;">
+                            <div style="font-size: 28px; font-weight: 700; color: var(--accent-human); margin-bottom: 4px;">${scores.human.avg.toFixed(1)}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Human Impact</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 28px; font-weight: 700; color: var(--accent-systems); margin-bottom: 4px;">${scores.systems.avg.toFixed(1)}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Systems Impact</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 28px; font-weight: 700; color: var(--accent-env); margin-bottom: 4px;">${scores.environment.avg.toFixed(1)}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">Environment</div>
+                        </div>
+                    </div>
+
+                    <h2>Key Findings</h2>
+                    <p><strong>Human Impact:</strong> Project scored ${scores.human.avg.toFixed(1)}/2.0. Focus areas: core purpose alignment, skill uplift, cognitive sovereignty.</p>
+                    <p><strong>Systems Impact:</strong> Project scored ${scores.systems.avg.toFixed(1)}/2.0. Key considerations: speed/cost tradeoff, quality assurance, vendor resilience.</p>
+                    <p><strong>Environmental Impact:</strong> Project scored ${scores.environment.avg.toFixed(1)}/2.0. Estimated CO₂ footprint: ${estimatedCO2kg} kg over 30 days.</p>
+
+                    <h2>Operational Metrics</h2>
+                    <ul style="margin-left: 20px; color: var(--text-secondary); font-size: 14px;">
+                        <li>API Calls (30 days): ${inferenceCalls.toLocaleString()}</li>
+                        <li>Estimated Cost: ${apiCost}</li>
+                        <li>Outcomes: ${outcomes}</li>
+                        <li>Estimated CO₂: ${estimatedCO2kg} kg</li>
+                    </ul>
+
+                    <h2>Recommendations</h2>
+                    <ul style="margin-left: 20px; color: var(--text-secondary); font-size: 14px;">
+                        ${scores.human.avg < 1.5 ? '<li>Strengthen human agency: Review decision-making processes to ensure AI augments rather than replaces judgment.</li>' : ''}
+                        ${scores.systems.avg < 1.5 ? '<li>Improve system resilience: Reduce vendor lock-in and document failure modes.</li>' : ''}
+                        ${scores.environment.avg < 1.5 ? '<li>Optimize environmental footprint: Consider smaller models, batch processing, or offset programs.</li>' : ''}
+                        <li>Document this assessment and share findings with stakeholders for transparency.</li>
+                        <li>Plan quarterly reassessments to track progress on recommendations.</li>
+                    </ul>
+
+                    <h2>How to Share & Replicate</h2>
+                    <p>This assessment is designed to be reproducible and comparable. Share this report with others to:</p>
+                    <ul style="margin-left: 20px; color: var(--text-secondary); font-size: 14px;">
+                        <li>Benchmark against similar projects</li>
+                        <li>Identify best practices in your industry</li>
+                        <li>Build a collective understanding of AI impact</li>
+                        <li>Inform organizational policy and governance</li>
+                    </ul>
+
+                    <div class="export-section">
+                        <button class="btn-export" onclick="exportReport()">📥 Export as JSON</button>
+                        <button class="btn-export" onclick="printReport()" style="background: var(--neutral); border-color: var(--neutral); margin-left: 12px;">🖨️ Print Report</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('reportContent').innerHTML = html;
+        }
+
+        function exportReport() {
+            const scores = calculateScores();
+            const report = {
+                project: {
+                    name: document.getElementById('projectName').value,
+                    description: document.getElementById('projectDesc').value,
+                    llmModel: document.getElementById('llmModel').value,
+                    inferenceCalls: parseInt(document.getElementById('inferenceCalls').value),
+                    apiCost: document.getElementById('apiCost').value,
+                    teamSize: parseInt(document.getElementById('teamSize').value),
+                    duration: parseInt(document.getElementById('projectDays').value),
+                    outcomes: document.getElementById('outcomes').value
+                },
+                scores: {
+                    human: scores.human.avg.toFixed(2),
+                    systems: scores.systems.avg.toFixed(2),
+                    environment: scores.environment.avg.toFixed(2)
+                },
+                responses: responses,
+                generatedAt: new Date().toISOString()
+            };
+
+            const dataStr = JSON.stringify(report, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `impact-assessment-${Date.now()}.json`;
+            link.click();
+        }
+
+        function printReport() {
+            window.print();
+        }
+
+        // Initialize
+        switchTab('project');
+    </script>
+</body>
+</html>
