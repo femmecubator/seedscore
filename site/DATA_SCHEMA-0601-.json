@@ -1,0 +1,420 @@
+{
+  "schema": {
+    "Project": {
+      "type": "object",
+      "required": ["id", "name", "llmModel", "createdAt"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier (UUID or timestamp-based)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Project name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Project description"
+        },
+        "llmModel": {
+          "type": "string",
+          "enum": ["Claude 3.5 Sonnet", "GPT-4", "GPT-4 Turbo", "Claude 3 Opus", "Gemini Pro", "Other"]
+        },
+        "inferenceCalls": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of API calls in assessment period"
+        },
+        "apiCost": {
+          "type": "string",
+          "description": "Total API cost (e.g., '$45.50')"
+        },
+        "teamSize": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of people on the project"
+        },
+        "projectDurationDays": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Project duration in days"
+        },
+        "outcomes": {
+          "type": "string",
+          "description": "Key outcomes achieved"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Assessment creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Categorization tags (e.g., 'content', 'research', 'customer-facing')"
+        },
+        "isPublic": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to include in public benchmarking"
+        }
+      }
+    },
+    "Assessment": {
+      "type": "object",
+      "required": ["projectId", "responses"],
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "description": "Reference to Project"
+        },
+        "responses": {
+          "type": "object",
+          "description": "Question ID → Score mapping",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2
+          }
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional qualitative feedback"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "ScoreCard": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string"
+        },
+        "human": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Average of H1-H5 scores"
+        },
+        "systems": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Average of S1-S5 scores"
+        },
+        "environment": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Average of E1-E3 scores"
+        },
+        "overall": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Average of all three pillars"
+        },
+        "breakdown": {
+          "type": "object",
+          "description": "Score breakdown by question",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "score": { "type": "integer" },
+              "title": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "EnvironmentalMetrics": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string"
+        },
+        "inferenceCalls": {
+          "type": "integer"
+        },
+        "estimatedTokens": {
+          "type": "integer",
+          "description": "Inferred from call count (typically 1,200 per call)"
+        },
+        "llmModel": {
+          "type": "string"
+        },
+        "emissionsPerToken": {
+          "type": "number",
+          "description": "kg CO₂ per token (model-specific)"
+        },
+        "estimatedCO2Kg": {
+          "type": "number",
+          "description": "Total CO₂ in kg for the assessment period"
+        },
+        "humanComparison": {
+          "type": "object",
+          "properties": {
+            "humanHoursEquivalent": {
+              "type": "number",
+              "description": "Hours of human work that would be needed"
+            },
+            "humanCO2Kg": {
+              "type": "number",
+              "description": "CO₂ equivalent of human work (office electricity, commute)"
+            },
+            "aiVsHumanRatio": {
+              "type": "number",
+              "description": "How many times more efficient (>1 = AI wins)"
+            }
+          }
+        },
+        "assessmentPeriodDays": {
+          "type": "integer"
+        }
+      }
+    },
+    "Report": {
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "project": { "$ref": "#/definitions/Project" },
+        "scoreCard": { "$ref": "#/definitions/ScoreCard" },
+        "environmentalMetrics": { "$ref": "#/definitions/EnvironmentalMetrics" },
+        "interpretation": {
+          "type": "string",
+          "description": "Human-readable summary of scores"
+        },
+        "recommendations": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "version": {
+          "type": "string",
+          "default": "1.0"
+        }
+      }
+    }
+  },
+  "examples": {
+    "project": {
+      "id": "proj-20241215-001",
+      "name": "Content Generation Pipeline",
+      "description": "Automated blog post and social media content creation using AI",
+      "llmModel": "Claude 3.5 Sonnet",
+      "inferenceCalls": 1500,
+      "apiCost": "$45.50",
+      "teamSize": 3,
+      "projectDurationDays": 30,
+      "outcomes": "50% faster content production, improved consistency, reduced editing time",
+      "createdAt": "2024-12-15T10:30:00Z",
+      "updatedAt": "2024-12-15T14:45:00Z",
+      "tags": ["content", "marketing", "automation"],
+      "isPublic": true
+    },
+    "assessment": {
+      "projectId": "proj-20241215-001",
+      "responses": {
+        "h1": 2,
+        "h2": 1,
+        "h3": 2,
+        "h4": 1,
+        "h5": 1,
+        "s1": 1,
+        "s2": 1,
+        "s3": 0,
+        "s4": 1,
+        "s5": 1,
+        "e1": 1,
+        "e2": 0,
+        "e3": 1
+      },
+      "notes": "Great progress on core purpose and reusability. Need to improve cognitive sovereignty in editing workflow.",
+      "completedAt": "2024-12-15T14:45:00Z"
+    },
+    "scoreCard": {
+      "projectId": "proj-20241215-001",
+      "human": 1.4,
+      "systems": 0.8,
+      "environment": 0.67,
+      "overall": 1.0,
+      "breakdown": {
+        "h1": {
+          "score": 2,
+          "title": "Does AI serve core purpose?"
+        },
+        "h2": {
+          "score": 1,
+          "title": "Uplift labor & skills?"
+        },
+        "h3": {
+          "score": 2,
+          "title": "Reusable by collective?"
+        },
+        "h4": {
+          "score": 1,
+          "title": "Cognitive sovereignty?"
+        },
+        "h5": {
+          "score": 1,
+          "title": "Collaboration & fairness?"
+        },
+        "s1": {
+          "score": 1,
+          "title": "Speed vs Cost tradeoff?"
+        },
+        "s2": {
+          "score": 1,
+          "title": "Quality & trust?"
+        },
+        "s3": {
+          "score": 0,
+          "title": "Corporate dependency?"
+        },
+        "s4": {
+          "score": 1,
+          "title": "Env & resource costs?"
+        },
+        "s5": {
+          "score": 1,
+          "title": "Systemic fragility?"
+        },
+        "e1": {
+          "score": 1,
+          "title": "Model efficiency?"
+        },
+        "e2": {
+          "score": 0,
+          "title": "Impact tracked?"
+        },
+        "e3": {
+          "score": 1,
+          "title": "Comparison provided?"
+        }
+      }
+    },
+    "environmentalMetrics": {
+      "projectId": "proj-20241215-001",
+      "inferenceCalls": 1500,
+      "estimatedTokens": 1800000,
+      "llmModel": "Claude 3.5 Sonnet",
+      "emissionsPerToken": 0.0000138,
+      "estimatedCO2Kg": 0.025,
+      "humanComparison": {
+        "humanHoursEquivalent": 180,
+        "humanCO2Kg": 2.4,
+        "aiVsHumanRatio": 96
+      },
+      "assessmentPeriodDays": 30
+    },
+    "report": {
+      "projectId": "proj-20241215-001",
+      "project": {
+        "id": "proj-20241215-001",
+        "name": "Content Generation Pipeline",
+        "description": "Automated blog post and social media content creation",
+        "llmModel": "Claude 3.5 Sonnet",
+        "inferenceCalls": 1500,
+        "apiCost": "$45.50",
+        "teamSize": 3,
+        "projectDurationDays": 30,
+        "outcomes": "50% faster content production",
+        "createdAt": "2024-12-15T10:30:00Z",
+        "updatedAt": "2024-12-15T14:45:00Z",
+        "tags": ["content", "marketing"],
+        "isPublic": true
+      },
+      "scoreCard": {
+        "projectId": "proj-20241215-001",
+        "human": 1.4,
+        "systems": 0.8,
+        "environment": 0.67,
+        "overall": 1.0
+      },
+      "environmentalMetrics": {
+        "projectId": "proj-20241215-001",
+        "inferenceCalls": 1500,
+        "estimatedTokens": 1800000,
+        "llmModel": "Claude 3.5 Sonnet",
+        "estimatedCO2Kg": 0.025,
+        "humanComparison": {
+          "humanHoursEquivalent": 180,
+          "humanCO2Kg": 2.4,
+          "aiVsHumanRatio": 96
+        },
+        "assessmentPeriodDays": 30
+      },
+      "interpretation": "This project demonstrates balanced impact with some areas of strength and opportunity for improvement. The integration of AI has achieved significant efficiency gains (96× less environmental impact than manual work). Focus areas: strengthen user agency in decision-making, reduce vendor lock-in, and improve environmental impact tracking.",
+      "recommendations": [
+        "Strengthen human agency: Review decision-making processes to ensure AI augments rather than replaces judgment.",
+        "Improve system resilience: Consider multi-vendor architecture to reduce dependency on Claude API.",
+        "Optimize environmental footprint: Implement detailed tracking using Code Carbon or ML.energy.",
+        "Document this assessment and share findings with stakeholders for transparency.",
+        "Plan quarterly reassessments to track progress on recommendations."
+      ],
+      "generatedAt": "2024-12-15T14:45:00Z",
+      "version": "1.0"
+    }
+  },
+  "emissionsData": {
+    "models": [
+      {
+        "name": "Claude 3.5 Sonnet",
+        "provider": "Anthropic",
+        "emissionsPerToken": 0.0000138,
+        "source": "Anthropic estimates",
+        "notes": "Mid-size, efficient architecture"
+      },
+      {
+        "name": "Claude 3 Opus",
+        "provider": "Anthropic",
+        "emissionsPerToken": 0.0000142,
+        "source": "Anthropic estimates",
+        "notes": "Larger, higher-capability model"
+      },
+      {
+        "name": "GPT-4",
+        "provider": "OpenAI",
+        "emissionsPerToken": 0.0000195,
+        "source": "OpenAI public data",
+        "notes": "Large model, higher compute"
+      },
+      {
+        "name": "GPT-4 Turbo",
+        "provider": "OpenAI",
+        "emissionsPerToken": 0.0000180,
+        "source": "OpenAI estimates",
+        "notes": "Optimized variant of GPT-4"
+      },
+      {
+        "name": "Gemini Pro",
+        "provider": "Google",
+        "emissionsPerToken": 0.0000120,
+        "source": "Google Climate Initiatives",
+        "notes": "Efficient inference on TPU"
+      }
+    ],
+    "humanComparison": {
+      "description": "Estimated CO₂ emissions from human work (office electricity, commute, etc.)",
+      "officeElectricityPerHour": 0.0072,
+      "commuteCO2PerHour": 0.012,
+      "totalPerHour": 0.02,
+      "assumptions": [
+        "Office electricity: ~7.2 kg CO₂ per person per day (typical US office)",
+        "Commute: ~12 kg CO₂ per person per day (car-based, 30 min each way)",
+        "Working hours: 8 per day"
+      ]
+    }
+  }
+}
