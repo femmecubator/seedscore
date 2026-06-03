@@ -71,6 +71,9 @@ Smol Gardens began as a concept at BetaNYC's UnSchool of Data 2026. Join us in b
 **An initiative for accountable AI practice in civic technology**
 
 # Workshops
+We're we have conducted the workshops
+
+## 2026
 
 Presented at BETANYC's Unschool of Data Conference, March 28, 2026 
 [SCRIBE Notes](https://docs.google.com/spreadsheets/d/1SBFoJXQuw2CV6SL-Yo9NzhZb3fU7PSAHy-Itne1tSko/edit?gid=0#gid=0) 
@@ -78,6 +81,9 @@ Presented at BETANYC's Unschool of Data Conference, March 28, 2026
 Presented at Makeshift 2026 Accountable Tech Conference during NYC x Design Week, May 20, 2026 
 [PROGRAM] (https://makeshift2026.dtpr.io/program)
 [DEMO] (https://docs.google.com/presentation/d/1XNNHEqFO-w9SkDP_uM2Oz9DTgkZdjlF-brs-eGETYgo/edit?usp=sharing)
+
+Presentat at Civic Tech Toronto, June 2, 2026
+[EVENT PROGRAM] https://civictech.ca/events/545/
 
 The workshop begins with a short presentation on the Smol Gardens project. The talk will also focus on the current state of AI-enabled web design, a self-auditing impact framework, and small language models as a good alternative to LLMs. The workshop will introduce design principles and approach to building civic tech grounded in continuous accountability to affected communities, transparency about tradeoffs, and openness to critique in order to strengthen community agency and democratic self-governance.
 
