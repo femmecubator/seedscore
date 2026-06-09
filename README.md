@@ -348,10 +348,10 @@ This is an open framework. Contributions welcome:
 **How to cite:**
 ```bibtex
 @tool{impact-assessment-2024,
-  title={Impact Assessment Tool: Measuring Human, Systems, and Environmental Impact of AI Work},
-  author={[Your Name/Organization]},
-  year={2024},
-  url={https://github.com/yourrepo/impact-assessment},
+  title={Seedscore Impact Assessment Tool: Measuring Human, Systems, and Environmental Impact of AI-enabled Work},
+  author={[Krizia Fernando/Open Civic Tech]},
+  year={2026},
+  url={https://github.com/femmecubator/seedscore},
   license={CC BY-SA 4.0}
 }
 ```
