@@ -347,7 +347,7 @@ This is an open framework. Contributions welcome:
 
 **How to cite:**
 ```bibtex
-@tool{impact-assessment-2024,
+@tool{seedscore-impact-assessment-2026,
   title={Seedscore Impact Assessment Tool: Measuring Human, Systems, and Environmental Impact of AI-enabled Work},
   author={[Krizia Fernando/Open Civic Tech]},
   year={2026},
@@ -409,7 +409,7 @@ You now have everything needed to:
 ✅ Share findings with your team and community  
 ✅ Contribute to the collective knowledge about AI impact  
 
-**Start with `impact-assessment.html` — open it now!**
+**Start with `seedscore.html` — open it now!**
 
 ---
 
