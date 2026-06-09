@@ -18,7 +18,6 @@ Existing frameworks don't adequately address all three dimensions together, and 
 
 A **15-question scorecard** that generates comparable, publishable impact assessments. Think of it like:
 - **A sustainability report** for AI projects
-- **A risk assessment** for vendor dependency
 - **A skills audit** for team capabilities
 - **A carbon footprint** with human-workflow comparison
 
