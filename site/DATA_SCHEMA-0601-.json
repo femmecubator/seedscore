@@ -18,7 +18,7 @@
         },
         "llmModel": {
           "type": "string",
-          "enum": ["Claude 3.5 Sonnet", "GPT-4", "GPT-4 Turbo", "Claude 3 Opus", "Gemini Pro", "Other"]
+          "enum": ["Claude 3.5 Sonnet", "Claude 3 Opus", "Claude Haiku 4.5", "GPT-4", "GPT-4 Turbo", "Gemini Pro", "Llama 2", "Qwen 8B", "SmolLM", "Other"]
         },
         "inferenceCalls": {
           "type": "integer",
@@ -384,6 +384,13 @@
         "notes": "Larger, higher-capability model"
       },
       {
+        "name": "Claude Haiku 4.5",
+        "provider": "Anthropic",
+        "emissionsPerToken": 0.0000045,
+        "source": "Size-based estimate",
+        "notes": "Small, fast model — low per-token compute"
+      },
+      {
         "name": "GPT-4",
         "provider": "OpenAI",
         "emissionsPerToken": 0.0000195,
@@ -403,6 +410,34 @@
         "emissionsPerToken": 0.0000120,
         "source": "Google Climate Initiatives",
         "notes": "Efficient inference on TPU"
+      },
+      {
+        "name": "Llama 2",
+        "provider": "Meta",
+        "emissionsPerToken": 0.0000110,
+        "source": "Size-based estimate",
+        "notes": "Open-weight model, self-hostable"
+      },
+      {
+        "name": "Qwen 8B",
+        "provider": "Alibaba",
+        "emissionsPerToken": 0.0000030,
+        "source": "Size-based estimate",
+        "notes": "8B small model — low per-token compute"
+      },
+      {
+        "name": "SmolLM",
+        "provider": "Hugging Face",
+        "emissionsPerToken": 0.0000008,
+        "source": "Size-based estimate",
+        "notes": "Very small model — minimal per-token compute"
+      },
+      {
+        "name": "Other",
+        "provider": "Unknown",
+        "emissionsPerToken": 0.0000140,
+        "source": "Default fallback",
+        "notes": "Unknown model — uses default emissions factor"
       }
     ],
     "humanComparison": {

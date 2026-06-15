@@ -557,14 +557,8 @@
 
                 <div class="form-group">
                     <label for="llmModel">LLM Model Used</label>
-                    <select id="llmModel">
-                        <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
-                        <option value="Claude 3 Opus">Claude 3 Opus</option>
-                        <option value="GPT-4">GPT-4</option>
-                        <option value="GPT-4 Turbo">GPT-4 Turbo</option>
-                        <option value="Llama 2">Llama 2</option>
-                        <option value="Other">Other</option>
-                    </select>
+                    <!-- Options populated from the MODELS source-of-truth (see script). -->
+                    <select id="llmModel"></select>
                 </div>
 
                 <div class="form-group">
@@ -627,6 +621,39 @@
     </div>
 
     <script>
+        // Single source of truth for LLM models. Drives the Project-setup dropdown,
+        // the Dashboard/Report CO2 estimate, and must stay in sync with
+        // DATA_SCHEMA-0601-.json (schema.Project.llmModel.enum + emissionsData.models).
+        // emissionsPerToken = kg CO2 per token. Small-model values are size-based
+        // estimates; large-model values match the schema's published figures.
+        const MODELS = [
+            { name: 'Claude 3.5 Sonnet', provider: 'Anthropic', emissionsPerToken: 0.0000138, size: 'large' },
+            { name: 'Claude 3 Opus',     provider: 'Anthropic', emissionsPerToken: 0.0000142, size: 'large' },
+            { name: 'Claude Haiku 4.5',  provider: 'Anthropic', emissionsPerToken: 0.0000045, size: 'small' },
+            { name: 'GPT-4',             provider: 'OpenAI',    emissionsPerToken: 0.0000195, size: 'large' },
+            { name: 'GPT-4 Turbo',       provider: 'OpenAI',    emissionsPerToken: 0.0000180, size: 'large' },
+            { name: 'Gemini Pro',        provider: 'Google',    emissionsPerToken: 0.0000120, size: 'large' },
+            { name: 'Llama 2',           provider: 'Meta',      emissionsPerToken: 0.0000110, size: 'medium' },
+            { name: 'Qwen 8B',           provider: 'Alibaba',   emissionsPerToken: 0.0000030, size: 'small' },
+            { name: 'SmolLM',            provider: 'Hugging Face', emissionsPerToken: 0.0000008, size: 'small' },
+            { name: 'Other',             provider: 'Unknown',   emissionsPerToken: 0.0000140, size: 'unknown' }
+        ];
+
+        // kg CO2 per token for a model name; falls back to the "Other" default.
+        function emissionsForModel(name) {
+            const m = MODELS.find(x => x.name === name);
+            return m ? m.emissionsPerToken : 0.0000140;
+        }
+
+        // Build the model dropdown from MODELS (no hardcoded <option> list in HTML).
+        function populateModelDropdown() {
+            const sel = document.getElementById('llmModel');
+            if (!sel) return;
+            sel.innerHTML = MODELS
+                .map(m => `<option value="${m.name}">${m.name}${m.size === 'small' ? ' (small)' : ''}</option>`)
+                .join('');
+        }
+
         // Assessment Questions
         const questions = [
             {
@@ -982,7 +1009,7 @@
             const llm = document.getElementById('llmModel').value;
             const inferenceCalls = parseInt(document.getElementById('inferenceCalls').value) || 0;
 
-            const estimatedCO2g = inferenceCalls * 1200 * 0.000014;
+            const estimatedCO2g = inferenceCalls * 1200 * emissionsForModel(llm);
             const estimatedCO2kg = (estimatedCO2g / 1000).toFixed(3);
 
             let html = `
@@ -1165,7 +1192,7 @@
             const outcomes = document.getElementById('outcomes').value;
             const inferenceCalls = parseInt(document.getElementById('inferenceCalls').value) || 0;
 
-            const estimatedCO2g = inferenceCalls * 1200 * 0.000014;
+            const estimatedCO2g = inferenceCalls * 1200 * emissionsForModel(llm);
             const estimatedCO2kg = (estimatedCO2g / 1000).toFixed(3);
 
             // Generate interpretation
@@ -1283,6 +1310,7 @@
         }
 
         // Initialize
+        populateModelDropdown();
         switchTab('project');
     </script>
 </body>
