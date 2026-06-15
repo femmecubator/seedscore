@@ -797,31 +797,19 @@
         ];
 
         let currentQuestion = 0;
+        // No pre-filled answers. Responses start empty so validation is real and
+        // the Dashboard/Report only reflect what the user actually answered.
         let responses = {};
 
-        // Initialize with placeholder responses for dashboard preview
-        function initializePlaceholderResponses() {
-            responses = {
-                'q1_core_purpose': 2,
-                'q2_uplift_skilling': 1,
-                'q3_cognitive_autonomy': 2,
-                'q4_creative_agency': 1,
-                'q5_human_judgment': 2,
-                'q6_reusability_commons': 1,
-                'q7_quality_harms': 2,
-                'q8_corporate_autonomy': 1,
-                'q9_maintenance_resilience': 2,
-                'q10_resilience_longevity': 1,
-                'q11_carbon_tracking': 2,
-                'q12_model_inference': 2,
-                'q13_full_resource_accounting': 1,
-                'q14_environmental_transparency': 1,
-                'q15_mitigation_strategy': 2
-            };
+        // True only when every question Q1-Q15 has a saved response.
+        function allAnswered() {
+            return questions.every(q => responses[q.id] !== undefined);
         }
-        
-        // Initialize on page load
-        initializePlaceholderResponses();
+
+        // How many of the 15 questions are answered so far.
+        function answeredCount() {
+            return questions.filter(q => responses[q.id] !== undefined).length;
+        }
 
         function togglePillars() {
             const content = document.getElementById('pillarsContent');
@@ -837,17 +825,27 @@
         }
 
         function switchTab(tabName) {
+            // Gate the scored views: Dashboard and Report require all 15 answers.
+            // Redirect to the assessment with a notice instead of showing partial/empty scores.
+            let pendingNotice = '';
+            if ((tabName === 'dashboard' || tabName === 'report') && !allAnswered()) {
+                pendingNotice = `Answer all ${questions.length} questions before viewing the ${tabName === 'dashboard' ? 'Dashboard' : 'Report'} — ${answeredCount()} of ${questions.length} answered.`;
+                tabName = 'assessment';
+            }
+
             // Hide all panels
             document.querySelectorAll('.tab-panel').forEach(panel => {
                 panel.classList.remove('active');
             });
+            // Highlight the matching tab button by target name (no reliance on event.target).
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('active');
+                const oc = btn.getAttribute('onclick') || '';
+                if (oc.includes(`'${tabName}'`)) btn.classList.add('active');
             });
 
             // Show selected panel
             document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
 
             // Generate content for specific tabs
             if (tabName === 'assessment') {
@@ -857,6 +855,21 @@
             } else if (tabName === 'report') {
                 renderReport();
             }
+
+            if (pendingNotice) showAssessmentNotice(pendingNotice);
+        }
+
+        // Show a non-blocking inline validation message inside the assessment panel.
+        function showAssessmentNotice(msg) {
+            const el = document.getElementById('assessmentNotice');
+            if (!el) return;
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function clearAssessmentNotice() {
+            const el = document.getElementById('assessmentNotice');
+            if (el) el.style.display = 'none';
         }
 
         function renderQuestion() {
@@ -906,7 +919,10 @@
                 `;
             });
 
-            html += '</div></div>';
+            html += '</div>';
+            html += `
+                    <div id="assessmentNotice" role="alert" style="display: none; margin-top: 16px; padding: 10px 14px; border-radius: 6px; background: #fdecea; color: #b3261e; font-size: 13px; font-weight: 500;"></div>
+                </div>`;
 
             document.getElementById('assessmentContent').innerHTML = html;
 
@@ -916,15 +932,17 @@
 
         function saveResponse(questionId, value) {
             responses[questionId] = value;
+            clearAssessmentNotice();
         }
 
         function nextQuestion() {
             if (responses[questions[currentQuestion].id] === undefined) {
-                alert('Please answer the question before continuing.');
+                showAssessmentNotice('Please answer this question before continuing.');
                 return;
             }
             currentQuestion++;
             if (currentQuestion >= questions.length) {
+                // All answered — switchTab gate will allow the Dashboard.
                 switchTab('dashboard');
             } else {
                 renderQuestion();
