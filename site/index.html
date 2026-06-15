@@ -1012,12 +1012,22 @@
             const estimatedCO2g = inferenceCalls * 1200 * emissionsForModel(llm);
             const estimatedCO2kg = (estimatedCO2g / 1000).toFixed(3);
 
+            // Efficiency comparison derived from the project inputs (no frozen numbers).
+            // AI hours = team person-hours actually spent; manual = assumed slower by
+            // MANUAL_MULTIPLIER (a stated assumption, surfaced in the UI).
+            const teamSize = parseInt(document.getElementById('teamSize').value) || 1;
+            const projectDays = parseInt(document.getElementById('projectDays').value) || 1;
+            const MANUAL_MULTIPLIER = 15;
+            const aiHours = teamSize * projectDays * 8;
+            const manualHours = aiHours * MANUAL_MULTIPLIER;
+            const aiWidthPct = Math.max(6, 100 / MANUAL_MULTIPLIER);
+
             let html = `
                 <div style="padding: 0;">
                     <!-- Section 1: Environment Report (Top) -->
                     <div style="margin-bottom: 3rem;">
                         <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1.5rem;">Environment Report</div>
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 1.5rem;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 1.5rem;">
                             <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Estimated CO₂ (30 days)</div>
                                 <div style="font-size: 28px; font-weight: 600; color: var(--accent-env); margin-bottom: 8px;">${estimatedCO2kg} kg</div>
@@ -1041,7 +1051,7 @@
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; font-weight: 500;">Development Hours</div>
                                 <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;">
                                     <div style="height: 32px; background: var(--bg-secondary); border-radius: 6px; overflow: hidden;">
-                                        <div style="height: 100%; width: 20%; background: var(--accent-env); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">60h</div>
+                                        <div style="height: 100%; width: ${aiWidthPct}%; background: var(--accent-env); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">${aiHours.toLocaleString()}h</div>
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-secondary); min-width: 40px;">AI</div>
                                 </div>
@@ -1050,14 +1060,14 @@
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; font-weight: 500;">Manual Alternative</div>
                                 <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;">
                                     <div style="height: 32px; background: var(--bg-secondary); border-radius: 6px; overflow: hidden;">
-                                        <div style="height: 100%; width: 100%; background: var(--text-light); display: flex; align-items: center; justify-content: center; color: var(--text-primary); font-weight: 600; font-size: 12px;">900h</div>
+                                        <div style="height: 100%; width: 100%; background: var(--text-light); display: flex; align-items: center; justify-content: center; color: var(--text-primary); font-weight: 600; font-size: 12px;">${manualHours.toLocaleString()}h</div>
                                     </div>
-                                    <div style="font-size: 12px; color: var(--text-secondary); min-width: 40px;">15x</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary); min-width: 40px;">${MANUAL_MULTIPLIER}x</div>
                                 </div>
                             </div>
                             <div style="padding: 12px; background: var(--bg-secondary); border-radius: 6px; text-align: center;">
-                                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Efficiency Gain</div>
-                                <div style="font-size: 18px; font-weight: 600; color: var(--accent-env);">15x faster</div>
+                                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Efficiency Gain (assumes manual is ${MANUAL_MULTIPLIER}× slower)</div>
+                                <div style="font-size: 18px; font-weight: 600; color: var(--accent-env);">${MANUAL_MULTIPLIER}x faster</div>
                             </div>
                         </div>
 
@@ -1090,7 +1100,7 @@
                                 <div style="font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Impact Pillars</div>
                                 <div id="pillarsChevron" style="font-size: 16px; color: var(--text-secondary); transition: transform 0.3s ease;">▼</div>
                             </button>
-                            <div id="pillarsContent" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 0 1.5rem 1.5rem;">
+                            <div id="pillarsContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; padding: 0 1.5rem 1.5rem;">
                                 <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
                                     <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Human Impact</div>
                                     <div style="font-size: 32px; font-weight: 600; color: var(--accent-human); margin-bottom: 8px;">${scores.human.avg.toFixed(1)}</div>
