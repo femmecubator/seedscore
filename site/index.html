@@ -40,6 +40,56 @@
             margin: 0 auto;
         }
 
+        /* ---- Multi-project sidebar ---- */
+        :root { --sidebar-w: 260px; }
+        #sidebarToggle {
+            position: fixed; top: 12px; left: 12px; z-index: 1100;
+            width: 40px; height: 40px; font-size: 18px; cursor: pointer;
+            background: var(--primary); color: #fff; border: none; border-radius: 6px;
+        }
+        #sidebar {
+            position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
+            background: var(--bg-primary); border-right: 1px solid var(--border);
+            padding: 16px 12px; overflow-y: auto; z-index: 1090;
+            transform: translateX(-100%); transition: transform .2s ease;
+        }
+        #sidebar.open { transform: translateX(0); box-shadow: 0 0 30px rgba(0,0,0,.18); }
+        #sidebar h2 { font-size: 15px; margin-bottom: 12px; }
+        #newProjectBtn {
+            width: 100%; padding: 10px; margin-bottom: 14px; cursor: pointer;
+            background: var(--primary); color: #fff; border: none; border-radius: 8px; font-weight: 600;
+        }
+        .proj-item {
+            padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+            margin-bottom: 8px; cursor: pointer; background: var(--bg-secondary);
+        }
+        .proj-item.active { border-color: var(--primary); background: var(--bg-tertiary); }
+        .proj-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .proj-meta { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+        .badge { font-size: 11px; padding: 2px 6px; border-radius: 10px; background: var(--neutral); color: #fff; }
+        .badge.done { background: var(--accent-human); }
+        .score-chip { font-size: 11px; padding: 2px 6px; border-radius: 10px; background: var(--primary); color: #fff; }
+        .proj-actions { display: flex; gap: 6px; margin-top: 8px; }
+        .proj-actions button {
+            font-size: 11px; padding: 3px 6px; cursor: pointer;
+            border: 1px solid var(--border); border-radius: 5px; background: var(--bg-primary);
+        }
+        .proj-actions button.del { color: #b3261e; }
+        @media (max-width: 1023px) {
+            /* hamburger is fixed top-left; push content + sidebar heading down so it doesn't overlap */
+            body { padding-top: 64px; }
+            #sidebar { padding-top: 64px; }
+        }
+        @media (min-width: 1024px) {
+            #sidebar { transform: translateX(0); }
+            #sidebarToggle { display: none; }
+            body { padding-left: calc(var(--sidebar-w) + 16px); }
+        }
+        @media print {
+            #sidebar, #sidebarToggle { display: none !important; }
+            body { padding-left: 16px; }
+        }
+
         header {
             text-align: center;
             margin-bottom: 32px;
@@ -478,6 +528,16 @@
         }
 
         @media (max-width: 768px) {
+            h1 { font-size: 22px; }
+            .tabs {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .tab-btn {
+                padding: 10px 14px;
+                white-space: nowrap;
+            }
             .dashboard {
                 grid-template-columns: 1fr;
             }
@@ -520,6 +580,12 @@
     </style>
 </head>
 <body>
+    <button id="sidebarToggle" onclick="toggleSidebar()" aria-label="Toggle projects">☰</button>
+    <aside id="sidebar">
+        <h2>Projects</h2>
+        <button id="newProjectBtn" onclick="newProject()">+ New Project</button>
+        <div id="projectList"></div>
+    </aside>
     <div class="container">
         <header>
             <h1>Seedscore v2 (Impact Scorecard)</h1>
@@ -960,6 +1026,7 @@
         function saveResponse(questionId, value) {
             responses[questionId] = value;
             clearAssessmentNotice();
+            autoSave();
         }
 
         function nextQuestion() {
@@ -968,6 +1035,7 @@
                 return;
             }
             currentQuestion++;
+            autoSave();
             if (currentQuestion >= questions.length) {
                 // All answered — switchTab gate will allow the Dashboard.
                 switchTab('dashboard');
@@ -979,11 +1047,13 @@
         function previousQuestion() {
             if (currentQuestion > 0) {
                 currentQuestion--;
+                autoSave();
                 renderQuestion();
             }
         }
 
-        function calculateScores() {
+        function calculateScores(resp) {
+            resp = resp || responses;
             const categories = {
                 human: { questions: ['q1_core_purpose', 'q2_uplift_skilling', 'q3_cognitive_autonomy', 'q4_creative_agency', 'q5_human_judgment'], values: [] },
                 systems: { questions: ['q6_reusability_commons', 'q7_quality_harms', 'q8_corporate_autonomy', 'q9_maintenance_resilience', 'q10_resilience_longevity'], values: [] },
@@ -992,8 +1062,8 @@
 
             for (let cat in categories) {
                 categories[cat].questions.forEach(q => {
-                    if (responses[q] !== undefined) {
-                        categories[cat].values.push(responses[q]);
+                    if (resp[q] !== undefined) {
+                        categories[cat].values.push(resp[q]);
                     }
                 });
                 categories[cat].avg = categories[cat].values.length > 0 
@@ -1284,44 +1354,357 @@
             document.getElementById('reportContent').innerHTML = html;
         }
 
-        function exportReport() {
-            const scores = calculateScores();
-            const report = {
+        // ---- Multi-project model + persistence ----
+        // Maps project-object keys to the Project-setup form input ids.
+        const FIELD_IDS = {
+            name: 'projectName', description: 'projectDesc', llmModel: 'llmModel',
+            teamSize: 'teamSize', projectDays: 'projectDays',
+            inferenceCalls: 'inferenceCalls', apiCost: 'apiCost', outcomes: 'outcomes'
+        };
+
+        // Persistence layer. localStorage-backed today; swap this object's body for
+        // Formulize API calls later (see docs/plans/2026-06-26-multiproject-formulize-design.md)
+        // without touching the UI/wiring above.
+
+        // ---- Formulize backend config ----
+        // localStorage stays the synchronous source of truth (offline-first). When
+        // enabled, Sync mirrors writes to Formulize through the PHP proxy and pulls
+        // remote state on load (last-write-wins by updatedAt). No instance yet, so
+        // this is OFF by default. To turn on: deploy site/api/seedscore-proxy.php on
+        // the Formulize host, build the two forms, then set enabled+proxyUrl+token.
+        // See docs/plans/2026-06-29-formulize-proxy-integration.md.
+        const CONFIG = {
+            formulize: {
+                enabled: false,
+                proxyUrl: '',   // e.g. https://forms.example.org/seedscore-proxy.php
+                token: ''       // must match SEEDSCORE_TOKEN in the proxy
+            }
+        };
+
+        // App project object -> Formulize project-form handles (design §2).
+        // responses keys (q1_core_purpose ...) are already the radio handles 1:1.
+        function toProjectFields(p) {
+            return Object.assign({
+                name: p.name, description: p.description, llm_model: p.llmModel,
+                team_size: p.teamSize, project_days: p.projectDays,
+                inference_calls: p.inferenceCalls, api_cost: p.apiCost,
+                outcomes: p.outcomes, created_at: p.createdAt, updated_at: p.updatedAt
+            }, p.responses || {});
+        }
+
+        // App project -> Formulize report-form handles (design §2).
+        function toReportFields(p) {
+            const r = buildReportObject(p);
+            const total = ((Number(r.scores.human) + Number(r.scores.systems) +
+                Number(r.scores.environment)) / 3).toFixed(2);
+            return {
+                fields: {
+                    score_human: r.scores.human, score_systems: r.scores.systems,
+                    score_environment: r.scores.environment, score_total: total,
+                    co2_kg: r.co2_kg, generated_at: r.generatedAt
+                },
+                snapshot: r
+            };
+        }
+
+        // Background mirror to Formulize. All methods no-op when disabled.
+        const Sync = {
+            on() { return CONFIG.formulize.enabled && CONFIG.formulize.proxyUrl; },
+            _url(action) { return CONFIG.formulize.proxyUrl + '?action=' + action; },
+            _headers() {
+                return { 'Content-Type': 'application/json',
+                         'X-Seedscore-Token': CONFIG.formulize.token };
+            },
+            _pushTimers: {},
+            push(project) {
+                if (!this.on() || !project || !project.id) return;
+                // Coalesce bursts of edits per project.
+                clearTimeout(this._pushTimers[project.id]);
+                this._pushTimers[project.id] = setTimeout(() => {
+                    const report = toReportFields(project);
+                    fetch(this._url('save'), {
+                        method: 'POST', headers: this._headers(),
+                        body: JSON.stringify({
+                            app_id: project.id,
+                            project_fields: toProjectFields(project),
+                            project_payload: project,
+                            report_fields: report.fields,
+                            report_snapshot: report.snapshot
+                        })
+                    }).catch(e => console.warn('Formulize push failed:', e));
+                }, 800);
+            },
+            remove(id) {
+                if (!this.on() || !id) return;
+                fetch(this._url('remove'), {
+                    method: 'POST', headers: this._headers(),
+                    body: JSON.stringify({ app_id: id })
+                }).catch(e => console.warn('Formulize remove failed:', e));
+            },
+            // Hydrate localStorage from Formulize before the UI reads it.
+            // Writes directly via Store._write to avoid re-triggering push.
+            pull() {
+                if (!this.on()) return Promise.resolve();
+                return fetch(this._url('list'), { headers: this._headers() })
+                    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+                    .then(data => {
+                        const remote = (data && data.projects) || [];
+                        const byId = {};
+                        Store._read().forEach(p => { byId[p.id] = p; });
+                        remote.forEach(rp => {
+                            const lp = byId[rp.id];
+                            if (!lp || new Date(rp.updatedAt || 0) > new Date(lp.updatedAt || 0)) {
+                                byId[rp.id] = rp;
+                            }
+                        });
+                        Store._write(Object.values(byId));
+                    })
+                    .catch(e => console.warn('Formulize pull failed:', e));
+            }
+        };
+
+        const Store = {
+            KEY: 'seedscore_projects',
+            ACTIVE: 'seedscore_active',
+            _read() { try { return JSON.parse(localStorage.getItem(this.KEY)) || []; } catch (e) { return []; } },
+            _write(a) { localStorage.setItem(this.KEY, JSON.stringify(a)); },
+            list() { return this._read(); },
+            load(id) { return this._read().find(p => p.id === id) || null; },
+            save(project) {
+                const a = this._read();
+                const i = a.findIndex(p => p.id === project.id);
+                project.updatedAt = new Date().toISOString();
+                if (i >= 0) a[i] = project; else a.push(project);
+                this._write(a);
+                Sync.push(project);
+                return project.id;
+            },
+            remove(id) { this._write(this._read().filter(p => p.id !== id)); Sync.remove(id); },
+            activeId() { return localStorage.getItem(this.ACTIVE); },
+            setActive(id) { localStorage.setItem(this.ACTIVE, id); }
+        };
+
+        let activeProjectId = null;
+
+        function blankProject() {
+            const now = new Date().toISOString();
+            return {
+                id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                name: '', description: '', llmModel: (MODELS[0] || {}).name || '',
+                teamSize: 5, projectDays: 30, inferenceCalls: 10000, apiCost: '', outcomes: '',
+                responses: {}, currentQuestion: 0, createdAt: now, updatedAt: now
+            };
+        }
+
+        // DOM + globals (responses, currentQuestion) -> project object.
+        function readForm() {
+            const base = Store.load(activeProjectId) || blankProject();
+            base.id = activeProjectId || base.id;
+            for (const k in FIELD_IDS) {
+                const el = document.getElementById(FIELD_IDS[k]);
+                if (el) base[k] = el.value;
+            }
+            base.responses = responses;
+            base.currentQuestion = currentQuestion;
+            return base;
+        }
+
+        // project object -> DOM + globals.
+        function writeForm(project) {
+            for (const k in FIELD_IDS) {
+                const el = document.getElementById(FIELD_IDS[k]);
+                if (el) el.value = project[k] != null ? project[k] : '';
+            }
+            responses = project.responses || {};
+            currentQuestion = project.currentQuestion || 0;
+        }
+
+        let _saveTimer = null;
+        function autoSave() {
+            clearTimeout(_saveTimer);
+            _saveTimer = setTimeout(() => {
+                if (!activeProjectId) return;
+                Store.save(readForm());
+                renderSidebar();
+            }, 300);
+        }
+
+        function attachAutoSave() {
+            Object.values(FIELD_IDS).forEach(fid => {
+                const el = document.getElementById(fid);
+                if (el) { el.addEventListener('input', autoSave); el.addEventListener('change', autoSave); }
+            });
+        }
+
+        function newProject() {
+            if (activeProjectId) Store.save(readForm());
+            const p = blankProject();
+            Store.save(p);
+            activeProjectId = p.id;
+            Store.setActive(p.id);
+            writeForm(p);
+            renderSidebar();
+            switchTab('project');
+            closeSidebarMobile();
+        }
+
+        function selectProject(id) {
+            if (id === activeProjectId) { switchTab('project'); closeSidebarMobile(); return; }
+            if (activeProjectId) Store.save(readForm());
+            const p = Store.load(id);
+            if (!p) return;
+            activeProjectId = id;
+            Store.setActive(id);
+            writeForm(p);
+            renderSidebar();
+            switchTab('project');
+            closeSidebarMobile();
+        }
+
+        function deleteProject(id, ev) {
+            if (ev) ev.stopPropagation();
+            if (!confirm('Delete this project? This cannot be undone.')) return;
+            Store.remove(id);
+            let list = Store.list();
+            if (id === activeProjectId) {
+                if (!list.length) { const p = blankProject(); Store.save(p); list = [p]; }
+                activeProjectId = list[0].id;
+                Store.setActive(activeProjectId);
+                writeForm(list[0]);
+                switchTab('project');
+            }
+            renderSidebar();
+        }
+
+        // Answered count + total avg score (0-2.0) for a stored project.
+        function projectScoreInfo(p) {
+            const total = questions.length;
+            const resp = p.responses || {};
+            const answered = questions.filter(q => resp[q.id] !== undefined).length;
+            let scoreTotal = null;
+            if (answered === total) {
+                const sum = questions.reduce((a, q) => a + Number(resp[q.id] || 0), 0);
+                scoreTotal = (sum / total).toFixed(1);
+            }
+            return { answered, total, scoreTotal };
+        }
+
+        function renderSidebar() {
+            const el = document.getElementById('projectList');
+            if (!el) return;
+            const list = Store.list();
+            if (!list.length) {
+                el.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);">No projects yet.</p>';
+                return;
+            }
+            el.innerHTML = list.map(p => {
+                const { answered, total, scoreTotal } = projectScoreInfo(p);
+                const active = p.id === activeProjectId ? ' active' : '';
+                const name = (p.name || 'Untitled project').replace(/</g, '&lt;');
+                const doneCls = answered === total ? ' done' : '';
+                const chip = scoreTotal !== null ? `<span class="score-chip">${scoreTotal}/2.0</span>` : '';
+                return `
+                    <div class="proj-item${active}" onclick="selectProject('${p.id}')">
+                        <div class="proj-name">${name}</div>
+                        <div class="proj-meta">
+                            <span class="badge${doneCls}">${answered}/${total}</span>
+                            ${chip}
+                        </div>
+                        <div class="proj-actions">
+                            <button onclick="exportProjectJSON('${p.id}', event)">JSON</button>
+                            <button onclick="exportProjectPDF('${p.id}', event)">PDF</button>
+                            <button class="del" onclick="deleteProject('${p.id}', event)">Delete</button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+        function closeSidebarMobile() {
+            if (window.matchMedia('(max-width: 1023px)').matches) {
+                document.getElementById('sidebar').classList.remove('open');
+            }
+        }
+
+        // ---- Export (per project) ----
+        function buildReportObject(p) {
+            const scores = calculateScores(p.responses || {});
+            const inferenceCalls = parseInt(p.inferenceCalls) || 0;
+            const co2kg = ((inferenceCalls * 1200 * emissionsForModel(p.llmModel)) / 1000).toFixed(3);
+            return {
                 project: {
-                    name: document.getElementById('projectName').value,
-                    description: document.getElementById('projectDesc').value,
-                    llmModel: document.getElementById('llmModel').value,
-                    inferenceCalls: parseInt(document.getElementById('inferenceCalls').value),
-                    apiCost: document.getElementById('apiCost').value,
-                    teamSize: parseInt(document.getElementById('teamSize').value),
-                    duration: parseInt(document.getElementById('projectDays').value),
-                    outcomes: document.getElementById('outcomes').value
+                    id: p.id, name: p.name, description: p.description, llmModel: p.llmModel,
+                    inferenceCalls, apiCost: p.apiCost, teamSize: parseInt(p.teamSize) || 0,
+                    duration: parseInt(p.projectDays) || 0, outcomes: p.outcomes
                 },
                 scores: {
                     human: scores.human.avg.toFixed(2),
                     systems: scores.systems.avg.toFixed(2),
                     environment: scores.environment.avg.toFixed(2)
                 },
-                responses: responses,
+                co2_kg: co2kg,
+                responses: p.responses || {},
                 generatedAt: new Date().toISOString()
             };
-
-            const dataStr = JSON.stringify(report, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `impact-assessment-${Date.now()}.json`;
-            link.click();
         }
 
-        function printReport() {
-            window.print();
+        function exportProjectJSON(id, ev) {
+            if (ev) ev.stopPropagation();
+            if (id === activeProjectId) Store.save(readForm());
+            const p = Store.load(id);
+            if (!p) return;
+            const data = JSON.stringify(buildReportObject(p), null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `seedscore-${(p.name || 'project').replace(/\s+/g, '-').toLowerCase()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
-        // Initialize
+        function exportProjectPDF(id, ev) {
+            if (ev) ev.stopPropagation();
+            selectProject(id);
+            if (!allAnswered()) {
+                alert('Answer all ' + questions.length + ' questions before exporting this project’s report PDF.');
+                return;
+            }
+            switchTab('report');
+            setTimeout(() => window.print(), 200);
+        }
+
+        // Report-tab buttons act on the active project.
+        function exportReport() { exportProjectJSON(activeProjectId); }
+        function printReport() { window.print(); }
+
+        // ---- Initialize ----
+        function initProjects() {
+            let list = Store.list();
+            let id = Store.activeId();
+            if (!list.length) {
+                const p = blankProject();
+                Store.save(p);
+                list = [p];
+                id = p.id;
+                Store.setActive(id);
+            }
+            if (!id || !list.find(p => p.id === id)) {
+                id = list[0].id;
+                Store.setActive(id);
+            }
+            activeProjectId = id;
+            writeForm(Store.load(id));
+            renderSidebar();
+            attachAutoSave();
+            switchTab('project');
+        }
+
         populateModelDropdown();
-        switchTab('project');
+        // Hydrate from Formulize (if enabled) before reading localStorage, then init.
+        Sync.pull().finally(initProjects);
     </script>
 </body>
 </html>
