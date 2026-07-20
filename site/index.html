@@ -557,14 +557,8 @@
 
                 <div class="form-group">
                     <label for="llmModel">LLM Model Used</label>
-                    <select id="llmModel">
-                        <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
-                        <option value="Claude 3 Opus">Claude 3 Opus</option>
-                        <option value="GPT-4">GPT-4</option>
-                        <option value="GPT-4 Turbo">GPT-4 Turbo</option>
-                        <option value="Llama 2">Llama 2</option>
-                        <option value="Other">Other</option>
-                    </select>
+                    <!-- Options populated from the MODELS source-of-truth (see script). -->
+                    <select id="llmModel"></select>
                 </div>
 
                 <div class="form-group">
@@ -627,6 +621,39 @@
     </div>
 
     <script>
+        // Single source of truth for LLM models. Drives the Project-setup dropdown,
+        // the Dashboard/Report CO2 estimate, and must stay in sync with
+        // DATA_SCHEMA-0601-.json (schema.Project.llmModel.enum + emissionsData.models).
+        // emissionsPerToken = kg CO2 per token. Small-model values are size-based
+        // estimates; large-model values match the schema's published figures.
+        const MODELS = [
+            { name: 'Claude 3.5 Sonnet', provider: 'Anthropic', emissionsPerToken: 0.0000138, size: 'large' },
+            { name: 'Claude 3 Opus',     provider: 'Anthropic', emissionsPerToken: 0.0000142, size: 'large' },
+            { name: 'Claude Haiku 4.5',  provider: 'Anthropic', emissionsPerToken: 0.0000045, size: 'small' },
+            { name: 'GPT-4',             provider: 'OpenAI',    emissionsPerToken: 0.0000195, size: 'large' },
+            { name: 'GPT-4 Turbo',       provider: 'OpenAI',    emissionsPerToken: 0.0000180, size: 'large' },
+            { name: 'Gemini Pro',        provider: 'Google',    emissionsPerToken: 0.0000120, size: 'large' },
+            { name: 'Llama 2',           provider: 'Meta',      emissionsPerToken: 0.0000110, size: 'medium' },
+            { name: 'Qwen 8B',           provider: 'Alibaba',   emissionsPerToken: 0.0000030, size: 'small' },
+            { name: 'SmolLM',            provider: 'Hugging Face', emissionsPerToken: 0.0000008, size: 'small' },
+            { name: 'Other',             provider: 'Unknown',   emissionsPerToken: 0.0000140, size: 'unknown' }
+        ];
+
+        // kg CO2 per token for a model name; falls back to the "Other" default.
+        function emissionsForModel(name) {
+            const m = MODELS.find(x => x.name === name);
+            return m ? m.emissionsPerToken : 0.0000140;
+        }
+
+        // Build the model dropdown from MODELS (no hardcoded <option> list in HTML).
+        function populateModelDropdown() {
+            const sel = document.getElementById('llmModel');
+            if (!sel) return;
+            sel.innerHTML = MODELS
+                .map(m => `<option value="${m.name}">${m.name}${m.size === 'small' ? ' (small)' : ''}</option>`)
+                .join('');
+        }
+
         // Assessment Questions
         const questions = [
             {
@@ -797,31 +824,19 @@
         ];
 
         let currentQuestion = 0;
+        // No pre-filled answers. Responses start empty so validation is real and
+        // the Dashboard/Report only reflect what the user actually answered.
         let responses = {};
 
-        // Initialize with placeholder responses for dashboard preview
-        function initializePlaceholderResponses() {
-            responses = {
-                'q1_core_purpose': 2,
-                'q2_uplift_skilling': 1,
-                'q3_cognitive_autonomy': 2,
-                'q4_creative_agency': 1,
-                'q5_human_judgment': 2,
-                'q6_reusability_commons': 1,
-                'q7_quality_harms': 2,
-                'q8_corporate_autonomy': 1,
-                'q9_maintenance_resilience': 2,
-                'q10_resilience_longevity': 1,
-                'q11_carbon_tracking': 2,
-                'q12_model_inference': 2,
-                'q13_full_resource_accounting': 1,
-                'q14_environmental_transparency': 1,
-                'q15_mitigation_strategy': 2
-            };
+        // True only when every question Q1-Q15 has a saved response.
+        function allAnswered() {
+            return questions.every(q => responses[q.id] !== undefined);
         }
-        
-        // Initialize on page load
-        initializePlaceholderResponses();
+
+        // How many of the 15 questions are answered so far.
+        function answeredCount() {
+            return questions.filter(q => responses[q.id] !== undefined).length;
+        }
 
         function togglePillars() {
             const content = document.getElementById('pillarsContent');
@@ -837,17 +852,27 @@
         }
 
         function switchTab(tabName) {
+            // Gate the scored views: Dashboard and Report require all 15 answers.
+            // Redirect to the assessment with a notice instead of showing partial/empty scores.
+            let pendingNotice = '';
+            if ((tabName === 'dashboard' || tabName === 'report') && !allAnswered()) {
+                pendingNotice = `Answer all ${questions.length} questions before viewing the ${tabName === 'dashboard' ? 'Dashboard' : 'Report'} — ${answeredCount()} of ${questions.length} answered.`;
+                tabName = 'assessment';
+            }
+
             // Hide all panels
             document.querySelectorAll('.tab-panel').forEach(panel => {
                 panel.classList.remove('active');
             });
+            // Highlight the matching tab button by target name (no reliance on event.target).
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('active');
+                const oc = btn.getAttribute('onclick') || '';
+                if (oc.includes(`'${tabName}'`)) btn.classList.add('active');
             });
 
             // Show selected panel
             document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
 
             // Generate content for specific tabs
             if (tabName === 'assessment') {
@@ -857,6 +882,21 @@
             } else if (tabName === 'report') {
                 renderReport();
             }
+
+            if (pendingNotice) showAssessmentNotice(pendingNotice);
+        }
+
+        // Show a non-blocking inline validation message inside the assessment panel.
+        function showAssessmentNotice(msg) {
+            const el = document.getElementById('assessmentNotice');
+            if (!el) return;
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function clearAssessmentNotice() {
+            const el = document.getElementById('assessmentNotice');
+            if (el) el.style.display = 'none';
         }
 
         function renderQuestion() {
@@ -906,7 +946,10 @@
                 `;
             });
 
-            html += '</div></div>';
+            html += '</div>';
+            html += `
+                    <div id="assessmentNotice" role="alert" style="display: none; margin-top: 16px; padding: 10px 14px; border-radius: 6px; background: #fdecea; color: #b3261e; font-size: 13px; font-weight: 500;"></div>
+                </div>`;
 
             document.getElementById('assessmentContent').innerHTML = html;
 
@@ -916,15 +959,17 @@
 
         function saveResponse(questionId, value) {
             responses[questionId] = value;
+            clearAssessmentNotice();
         }
 
         function nextQuestion() {
             if (responses[questions[currentQuestion].id] === undefined) {
-                alert('Please answer the question before continuing.');
+                showAssessmentNotice('Please answer this question before continuing.');
                 return;
             }
             currentQuestion++;
             if (currentQuestion >= questions.length) {
+                // All answered — switchTab gate will allow the Dashboard.
                 switchTab('dashboard');
             } else {
                 renderQuestion();
@@ -964,15 +1009,25 @@
             const llm = document.getElementById('llmModel').value;
             const inferenceCalls = parseInt(document.getElementById('inferenceCalls').value) || 0;
 
-            const estimatedCO2g = inferenceCalls * 1200 * 0.000014;
+            const estimatedCO2g = inferenceCalls * 1200 * emissionsForModel(llm);
             const estimatedCO2kg = (estimatedCO2g / 1000).toFixed(3);
+
+            // Efficiency comparison derived from the project inputs (no frozen numbers).
+            // AI hours = team person-hours actually spent; manual = assumed slower by
+            // MANUAL_MULTIPLIER (a stated assumption, surfaced in the UI).
+            const teamSize = parseInt(document.getElementById('teamSize').value) || 1;
+            const projectDays = parseInt(document.getElementById('projectDays').value) || 1;
+            const MANUAL_MULTIPLIER = 15;
+            const aiHours = teamSize * projectDays * 8;
+            const manualHours = aiHours * MANUAL_MULTIPLIER;
+            const aiWidthPct = Math.max(6, 100 / MANUAL_MULTIPLIER);
 
             let html = `
                 <div style="padding: 0;">
                     <!-- Section 1: Environment Report (Top) -->
                     <div style="margin-bottom: 3rem;">
                         <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1.5rem;">Environment Report</div>
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 1.5rem;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 1.5rem;">
                             <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Estimated CO₂ (30 days)</div>
                                 <div style="font-size: 28px; font-weight: 600; color: var(--accent-env); margin-bottom: 8px;">${estimatedCO2kg} kg</div>
@@ -996,7 +1051,7 @@
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; font-weight: 500;">Development Hours</div>
                                 <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;">
                                     <div style="height: 32px; background: var(--bg-secondary); border-radius: 6px; overflow: hidden;">
-                                        <div style="height: 100%; width: 20%; background: var(--accent-env); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">60h</div>
+                                        <div style="height: 100%; width: ${aiWidthPct}%; background: var(--accent-env); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">${aiHours.toLocaleString()}h</div>
                                     </div>
                                     <div style="font-size: 12px; color: var(--text-secondary); min-width: 40px;">AI</div>
                                 </div>
@@ -1005,14 +1060,14 @@
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; font-weight: 500;">Manual Alternative</div>
                                 <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;">
                                     <div style="height: 32px; background: var(--bg-secondary); border-radius: 6px; overflow: hidden;">
-                                        <div style="height: 100%; width: 100%; background: var(--text-light); display: flex; align-items: center; justify-content: center; color: var(--text-primary); font-weight: 600; font-size: 12px;">900h</div>
+                                        <div style="height: 100%; width: 100%; background: var(--text-light); display: flex; align-items: center; justify-content: center; color: var(--text-primary); font-weight: 600; font-size: 12px;">${manualHours.toLocaleString()}h</div>
                                     </div>
-                                    <div style="font-size: 12px; color: var(--text-secondary); min-width: 40px;">15x</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary); min-width: 40px;">${MANUAL_MULTIPLIER}x</div>
                                 </div>
                             </div>
                             <div style="padding: 12px; background: var(--bg-secondary); border-radius: 6px; text-align: center;">
-                                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Efficiency Gain</div>
-                                <div style="font-size: 18px; font-weight: 600; color: var(--accent-env);">15x faster</div>
+                                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Efficiency Gain (assumes manual is ${MANUAL_MULTIPLIER}× slower)</div>
+                                <div style="font-size: 18px; font-weight: 600; color: var(--accent-env);">${MANUAL_MULTIPLIER}x faster</div>
                             </div>
                         </div>
 
@@ -1045,7 +1100,7 @@
                                 <div style="font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Impact Pillars</div>
                                 <div id="pillarsChevron" style="font-size: 16px; color: var(--text-secondary); transition: transform 0.3s ease;">▼</div>
                             </button>
-                            <div id="pillarsContent" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 0 1.5rem 1.5rem;">
+                            <div id="pillarsContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; padding: 0 1.5rem 1.5rem;">
                                 <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
                                     <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Human Impact</div>
                                     <div style="font-size: 32px; font-weight: 600; color: var(--accent-human); margin-bottom: 8px;">${scores.human.avg.toFixed(1)}</div>
@@ -1147,7 +1202,7 @@
             const outcomes = document.getElementById('outcomes').value;
             const inferenceCalls = parseInt(document.getElementById('inferenceCalls').value) || 0;
 
-            const estimatedCO2g = inferenceCalls * 1200 * 0.000014;
+            const estimatedCO2g = inferenceCalls * 1200 * emissionsForModel(llm);
             const estimatedCO2kg = (estimatedCO2g / 1000).toFixed(3);
 
             // Generate interpretation
@@ -1265,6 +1320,7 @@
         }
 
         // Initialize
+        populateModelDropdown();
         switchTab('project');
     </script>
 </body>

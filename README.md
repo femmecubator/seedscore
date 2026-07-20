@@ -1,4 +1,4 @@
-# Seedscore | Impact Assessment System — Complete Package
+# Seedscore | Impact Assessment System — What's in this Package
 Research documentation for Seedscore, an IAT Tool used for Accountable AI audit created for the Smol Gardens Project.
 
 ## 📋 What You Have
@@ -18,7 +18,6 @@ Existing frameworks don't adequately address all three dimensions together, and 
 
 A **15-question scorecard** that generates comparable, publishable impact assessments. Think of it like:
 - **A sustainability report** for AI projects
-- **A risk assessment** for vendor dependency
 - **A skills audit** for team capabilities
 - **A carbon footprint** with human-workflow comparison
 
@@ -347,11 +346,11 @@ This is an open framework. Contributions welcome:
 
 **How to cite:**
 ```bibtex
-@tool{impact-assessment-2024,
-  title={Impact Assessment Tool: Measuring Human, Systems, and Environmental Impact of AI Work},
-  author={[Your Name/Organization]},
-  year={2024},
-  url={https://github.com/yourrepo/impact-assessment},
+@tool{seedscore-impact-assessment-2026,
+  title={Seedscore Impact Assessment Tool: Measuring Human, Systems, and Environmental Impact of AI-enabled Work},
+  author={[Krizia Fernando/Open Civic Tech]},
+  year={2026},
+  url={https://github.com/femmecubator/seedscore},
   license={CC BY-SA 4.0}
 }
 ```
@@ -409,7 +408,7 @@ You now have everything needed to:
 ✅ Share findings with your team and community  
 ✅ Contribute to the collective knowledge about AI impact  
 
-**Start with `impact-assessment.html` — open it now!**
+**Start with `seedscore.html` — open it now!**
 
 ---
 
