@@ -1362,107 +1362,8 @@
             inferenceCalls: 'inferenceCalls', apiCost: 'apiCost', outcomes: 'outcomes'
         };
 
-        // Persistence layer. localStorage-backed today; swap this object's body for
-        // Formulize API calls later (see docs/plans/2026-06-26-multiproject-formulize-design.md)
-        // without touching the UI/wiring above.
-
-        // ---- Formulize backend config ----
-        // localStorage stays the synchronous source of truth (offline-first). When
-        // enabled, Sync mirrors writes to Formulize through the PHP proxy and pulls
-        // remote state on load (last-write-wins by updatedAt). No instance yet, so
-        // this is OFF by default. To turn on: deploy site/api/seedscore-proxy.php on
-        // the Formulize host, build the two forms, then set enabled+proxyUrl+token.
-        // See docs/plans/2026-06-29-formulize-proxy-integration.md.
-        const CONFIG = {
-            formulize: {
-                enabled: false,
-                proxyUrl: '',   // e.g. https://forms.example.org/seedscore-proxy.php
-                token: ''       // must match SEEDSCORE_TOKEN in the proxy
-            }
-        };
-
-        // App project object -> Formulize project-form handles (design §2).
-        // responses keys (q1_core_purpose ...) are already the radio handles 1:1.
-        function toProjectFields(p) {
-            return Object.assign({
-                name: p.name, description: p.description, llm_model: p.llmModel,
-                team_size: p.teamSize, project_days: p.projectDays,
-                inference_calls: p.inferenceCalls, api_cost: p.apiCost,
-                outcomes: p.outcomes, created_at: p.createdAt, updated_at: p.updatedAt
-            }, p.responses || {});
-        }
-
-        // App project -> Formulize report-form handles (design §2).
-        function toReportFields(p) {
-            const r = buildReportObject(p);
-            const total = ((Number(r.scores.human) + Number(r.scores.systems) +
-                Number(r.scores.environment)) / 3).toFixed(2);
-            return {
-                fields: {
-                    score_human: r.scores.human, score_systems: r.scores.systems,
-                    score_environment: r.scores.environment, score_total: total,
-                    co2_kg: r.co2_kg, generated_at: r.generatedAt
-                },
-                snapshot: r
-            };
-        }
-
-        // Background mirror to Formulize. All methods no-op when disabled.
-        const Sync = {
-            on() { return CONFIG.formulize.enabled && CONFIG.formulize.proxyUrl; },
-            _url(action) { return CONFIG.formulize.proxyUrl + '?action=' + action; },
-            _headers() {
-                return { 'Content-Type': 'application/json',
-                         'X-Seedscore-Token': CONFIG.formulize.token };
-            },
-            _pushTimers: {},
-            push(project) {
-                if (!this.on() || !project || !project.id) return;
-                // Coalesce bursts of edits per project.
-                clearTimeout(this._pushTimers[project.id]);
-                this._pushTimers[project.id] = setTimeout(() => {
-                    const report = toReportFields(project);
-                    fetch(this._url('save'), {
-                        method: 'POST', headers: this._headers(),
-                        body: JSON.stringify({
-                            app_id: project.id,
-                            project_fields: toProjectFields(project),
-                            project_payload: project,
-                            report_fields: report.fields,
-                            report_snapshot: report.snapshot
-                        })
-                    }).catch(e => console.warn('Formulize push failed:', e));
-                }, 800);
-            },
-            remove(id) {
-                if (!this.on() || !id) return;
-                fetch(this._url('remove'), {
-                    method: 'POST', headers: this._headers(),
-                    body: JSON.stringify({ app_id: id })
-                }).catch(e => console.warn('Formulize remove failed:', e));
-            },
-            // Hydrate localStorage from Formulize before the UI reads it.
-            // Writes directly via Store._write to avoid re-triggering push.
-            pull() {
-                if (!this.on()) return Promise.resolve();
-                return fetch(this._url('list'), { headers: this._headers() })
-                    .then(r => r.ok ? r.json() : Promise.reject(r.status))
-                    .then(data => {
-                        const remote = (data && data.projects) || [];
-                        const byId = {};
-                        Store._read().forEach(p => { byId[p.id] = p; });
-                        remote.forEach(rp => {
-                            const lp = byId[rp.id];
-                            if (!lp || new Date(rp.updatedAt || 0) > new Date(lp.updatedAt || 0)) {
-                                byId[rp.id] = rp;
-                            }
-                        });
-                        Store._write(Object.values(byId));
-                    })
-                    .catch(e => console.warn('Formulize pull failed:', e));
-            }
-        };
-
+        // Persistence layer. localStorage-backed; swap this object's body for a
+        // remote backend later without touching the UI/wiring above.
         const Store = {
             KEY: 'seedscore_projects',
             ACTIVE: 'seedscore_active',
@@ -1476,10 +1377,9 @@
                 project.updatedAt = new Date().toISOString();
                 if (i >= 0) a[i] = project; else a.push(project);
                 this._write(a);
-                Sync.push(project);
                 return project.id;
             },
-            remove(id) { this._write(this._read().filter(p => p.id !== id)); Sync.remove(id); },
+            remove(id) { this._write(this._read().filter(p => p.id !== id)); },
             activeId() { return localStorage.getItem(this.ACTIVE); },
             setActive(id) { localStorage.setItem(this.ACTIVE, id); }
         };
@@ -1703,8 +1603,7 @@
         }
 
         populateModelDropdown();
-        // Hydrate from Formulize (if enabled) before reading localStorage, then init.
-        Sync.pull().finally(initProjects);
+        initProjects();
     </script>
 </body>
 </html>
