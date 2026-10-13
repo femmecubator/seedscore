@@ -569,6 +569,15 @@
             gap: 12px;
         }
 
+        /* Smaller desktop / laptop screens: scale down the large type (SC-4) */
+        @media (min-width: 769px) and (max-width: 1440px) {
+            h1 { font-size: 24px; }
+            .dashboard-headline { font-size: 19px !important; }
+            .stat-value { font-size: 22px !important; }
+            .question-title { font-size: 17px; }
+            .tab-btn { padding: 10px 16px; font-size: 13px; }
+        }
+
         @media (max-width: 768px) {
             .responsive-grid-3 {
                 grid-template-columns: 1fr !important;
@@ -652,7 +661,7 @@
 </svg>
         <h1 class="sr-only">Seedscore by Smol Gardens. Accountable Tech Index</h1>
     </header>
-    <button id="sidebarToggle" onclick="toggleSidebar()" aria-label="Toggle projects">☰</button>
+    <button id="sidebarToggle" onclick="toggleSidebar()" aria-label="Open projects" aria-expanded="false" aria-controls="sidebar">☰</button>
     <div class="app-shell">
     <aside id="sidebar">
         <h2>Projects</h2>
@@ -1183,6 +1192,9 @@
 
             // Generate content for specific tabs
             if (tabName === 'assessment') {
+                // Finished assessments reopen at question 1 for review instead of
+                // bouncing straight back to the Dashboard (SC-3).
+                if (currentQuestion >= questions.length) currentQuestion = 0;
                 renderQuestion();
             } else if (tabName === 'dashboard') {
                 renderDashboard();
@@ -1654,8 +1666,10 @@
             };
 
             const tierComparisonHTML = `
-                <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; overflow-x: auto;">
+                <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
                     <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 1.5rem;">Tier Model Comparison</div>
+                    <!-- Only the table scrolls on narrow screens; the note below keeps the card's full width (SC-10) -->
+                    <div style="overflow-x: auto;">
                     <table style="width: 100%; border-collapse: collapse; min-width: 480px;">
                         <thead><tr><th></th>${tierColHeader}</tr></thead>
                         <tbody>
@@ -1664,6 +1678,7 @@
                             ${tierRow('Energy / month', m => fmtRange(m.energyMonthly, 2, 'kWh', m.envNote))}
                         </tbody>
                     </table>
+                    </div>
                     <div style="padding-top: 12px; margin-top: 12px; border-top: 0.5px solid var(--border); font-size: 11px; color: var(--text-secondary);">
                         Figures scale with your ${inputs.monthlyCalls.toLocaleString()} monthly inference calls, based on tier reference data.
                     </div>
@@ -1695,8 +1710,9 @@
             const hasFrontierNote = ecoMetrics.frontier && ecoMetrics.frontier.note;
 
             const ecoFootprintHTML = `
-                <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; overflow-x: auto;">
+                <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;">
                     <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 1.5rem;">Inference-Based Ecological Footprint</div>
+                    <div style="overflow-x: auto;">
                     <table style="width: 100%; border-collapse: collapse; min-width: 480px;">
                         <thead><tr><th></th>${ecoColHeader}</tr></thead>
                         <tbody>
@@ -1704,6 +1720,7 @@
                             ${ecoRow('Energy / month', m => fmtRange(m.energyMonthly, 2, 'kWh', m.envNote))}
                         </tbody>
                     </table>
+                    </div>
                     <div style="padding-top: 12px; margin-top: 12px; border-top: 0.5px solid var(--border); font-size: 11px; color: var(--text-secondary);">
                         A second, independently-sourced estimate — not derived from the Tier Model Comparison above. Based on a Haiku/Sonnet/Opus structural breakdown at the same monthly call volume. No CO₂ figure exists in this source, so only Water and Energy are shown.${hasFrontierNote ? `<br>${ecoMetrics.frontier.note}` : ''}
                     </div>
@@ -1746,19 +1763,23 @@
                 </div>`;
 
             // Headline — dynamic practical water equivalent (see getWaterEquivalentText)
-            const projectName = document.getElementById('projectName').value || 'Your Project';
+            // Unnamed project reads "Your project uses…", not "Your project Your Project uses…" (SC-5)
+            const projectName = document.getElementById('projectName').value.trim();
+            const projectNameHTML = projectName ? ` <span style="color: var(--accent-env);">${projectName}</span>` : '';
             const equivalentText = getWaterEquivalentText(selectedEco.waterMonthly);
             const tierOptionsHTML = Object.keys(TIER_DATA).map(k =>
                 `<option value="${k}" ${k === inputs.tierKey ? 'selected' : ''}>${TIER_DATA[k].label}</option>`
             ).join('');
+            // Visible label sized to the selected tier, with an invisible <select> laid over it,
+            // so the arrow always sits right after the name whatever its length (SC-6).
             const headlineHTML = `
                 <div class="dashboard-headline" style="font-family: var(--font-heading); font-size: 22px; font-weight: 600; line-height: 1.5; color: var(--text-primary); margin-bottom: 1.5rem;">
-                    Your project <span style="color: var(--accent-env);">${projectName}</span> uses
-                    <span style="position: relative; display: inline-block;">
-                        <select onchange="document.getElementById('modelTier').value = this.value; updateComputedFields(); renderDashboard();" style="appearance: none; -webkit-appearance: none; background: transparent; border: none; border-bottom: 2px dotted var(--accent-env); font: inherit; font-weight: 600; color: var(--accent-env); cursor: pointer; padding: 0 20px 2px 0;">
+                    Your project${projectNameHTML} uses
+                    <span class="tier-pick" style="position: relative; display: inline-block; border-bottom: 2px dotted var(--accent-env); color: var(--accent-env); cursor: pointer;">
+                        <span class="tier-pick-label">${selected.tier.label}</span><span aria-hidden="true" style="margin-left: 4px; font-size: 13px; vertical-align: 2px;">▾</span>
+                        <select aria-label="Model tier" onchange="document.getElementById('modelTier').value = this.value; updateComputedFields(); renderDashboard();" style="position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; opacity: 0; cursor: pointer; font: inherit;">
                             ${tierOptionsHTML}
                         </select>
-                        <span style="position: absolute; right: 2px; top: 50%; transform: translateY(-55%); pointer-events: none; color: var(--accent-env); font-size: 13px;">▾</span>
                     </span>
                     tier model, at <span style="color: var(--accent-env);">${inputs.monthlyCalls.toLocaleString()} monthly inference calls</span> requires approximately <span style="color: var(--accent-env);">${fmtRange(selectedEco.waterMonthly, 1, 'liters', selectedEco.envNote)}</span> in data center cooling.${equivalentText ? ` That's equivalent to <span style="color: var(--accent-env);">${equivalentText}</span>.` : ''}
                 </div>`;
@@ -1777,19 +1798,19 @@
                         <div class="responsive-grid-3" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 1.5rem;">
                             <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Inference Calls</div>
-                                <div style="font-family: var(--font-heading); font-size: 24px; font-weight: 700; color: var(--accent-env); margin-bottom: 2px;">${inputs.monthlyCalls.toLocaleString()}</div>
+                                <div class="stat-value" style="font-family: var(--font-heading); font-size: 24px; font-weight: 700; color: var(--accent-env); margin-bottom: 2px;">${inputs.monthlyCalls.toLocaleString()}</div>
                                 <div style="font-family: var(--font-heading); font-size: 12px; font-weight: 500; color: var(--accent-env); margin-bottom: 4px;">monthly calls</div>
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">${inputs.users.toLocaleString()} requests × ${inputs.inferencesPerRequest}${inputs.moderation ? ' × 2' : ''} inferences for ${PROJECT_TYPES[inputs.typeKey].article} ${PROJECT_TYPES[inputs.typeKey].label} project</div>
                                 <div style="font-size: 11px; color: var(--text-secondary); border-top: 0.5px solid var(--border); padding-top: 6px;">≈ ${fmtTokens(inputs.inputTokens)} input · ${fmtTokens(inputs.outputTokens)} output tokens / month</div>
                             </div>
                             <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Token Math</div>
-                                <div style="font-family: var(--font-heading); font-size: 28px; font-weight: 600; color: var(--accent-env); margin-bottom: 8px;">${fmtTokens(inputs.inputTokens)} input · ${fmtTokens(inputs.outputTokens)} output</div>
+                                <div class="stat-value" style="font-family: var(--font-heading); font-size: 28px; font-weight: 600; color: var(--accent-env); margin-bottom: 8px;">${fmtTokens(inputs.inputTokens)} input · ${fmtTokens(inputs.outputTokens)} output</div>
                                 <div style="font-size: 12px; color: var(--text-secondary);">tokens per month</div>
                             </div>
                             <div style="background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: 8px; padding: 1.5rem; text-align: center;">
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500;">Model Tier</div>
-                                <div style="font-family: var(--font-heading); font-size: 28px; font-weight: 600; color: var(--accent-env); margin-bottom: 8px;">${selected.tier.label}</div>
+                                <div class="stat-value" style="font-family: var(--font-heading); font-size: 28px; font-weight: 600; color: var(--accent-env); margin-bottom: 8px;">${selected.tier.label}</div>
                                 <div style="font-size: 11px; color: var(--text-secondary);">${selected.tier.sublabel}</div>
                             </div>
                         </div>
@@ -1822,15 +1843,15 @@
                             <div style="font-family: var(--font-heading); font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 1.25rem;">Three-Pillar Scores</div>
                             <div class="responsive-grid-3" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 1.5rem;">
                                 <div style="text-align: center;">
-                                    <div style="font-size: 28px; font-weight: 700; color: var(--accent-human); margin-bottom: 4px;">${scores.human.avg.toFixed(1)}</div>
+                                    <div class="stat-value" style="font-size: 28px; font-weight: 700; color: var(--accent-human); margin-bottom: 4px;">${scores.human.avg.toFixed(1)}</div>
                                     <div style="font-family: var(--font-heading); font-size: 12px; font-weight: 600; color: var(--text-secondary);">Human Impact</div>
                                 </div>
                                 <div style="text-align: center;">
-                                    <div style="font-size: 28px; font-weight: 700; color: var(--accent-systems); margin-bottom: 4px;">${scores.systems.avg.toFixed(1)}</div>
+                                    <div class="stat-value" style="font-size: 28px; font-weight: 700; color: var(--accent-systems); margin-bottom: 4px;">${scores.systems.avg.toFixed(1)}</div>
                                     <div style="font-family: var(--font-heading); font-size: 12px; font-weight: 600; color: var(--text-secondary);">Systems Impact</div>
                                 </div>
                                 <div style="text-align: center;">
-                                    <div style="font-size: 28px; font-weight: 700; color: var(--accent-env); margin-bottom: 4px;">${scores.environment.avg.toFixed(1)}</div>
+                                    <div class="stat-value" style="font-size: 28px; font-weight: 700; color: var(--accent-env); margin-bottom: 4px;">${scores.environment.avg.toFixed(1)}</div>
                                     <div style="font-family: var(--font-heading); font-size: 12px; font-weight: 600; color: var(--text-secondary);">Environment</div>
                                 </div>
                             </div>
@@ -1954,15 +1975,15 @@
                     <h3 style="font-size: 16px; margin-top: 16px; margin-bottom: 8px;">Three Pillar Principles</h3>
                     <div class="report-metrics">
                         <div style="text-align: center;">
-                            <div style="font-size: 28px; font-weight: 700; color: var(--accent-human); margin-bottom: 4px;">${scores.human.avg.toFixed(1)}</div>
+                            <div class="stat-value" style="font-size: 28px; font-weight: 700; color: var(--accent-human); margin-bottom: 4px;">${scores.human.avg.toFixed(1)}</div>
                             <div style="font-size: 12px; color: var(--text-secondary);">Human Impact</div>
                         </div>
                         <div style="text-align: center;">
-                            <div style="font-size: 28px; font-weight: 700; color: var(--accent-systems); margin-bottom: 4px;">${scores.systems.avg.toFixed(1)}</div>
+                            <div class="stat-value" style="font-size: 28px; font-weight: 700; color: var(--accent-systems); margin-bottom: 4px;">${scores.systems.avg.toFixed(1)}</div>
                             <div style="font-size: 12px; color: var(--text-secondary);">Systems Impact</div>
                         </div>
                         <div style="text-align: center;">
-                            <div style="font-size: 28px; font-weight: 700; color: var(--accent-env); margin-bottom: 4px;">${scores.environment.avg.toFixed(1)}</div>
+                            <div class="stat-value" style="font-size: 28px; font-weight: 700; color: var(--accent-env); margin-bottom: 4px;">${scores.environment.avg.toFixed(1)}</div>
                             <div style="font-size: 12px; color: var(--text-secondary);">Environment</div>
                         </div>
                     </div>
@@ -2239,12 +2260,22 @@
             }).join('');
         }
 
+        // Hamburger shows ✕ while the drawer is open (SC-9).
+        function syncSidebarToggle() {
+            const open = document.getElementById('sidebar').classList.contains('open');
+            const btn = document.getElementById('sidebarToggle');
+            btn.textContent = open ? '✕' : '☰';
+            btn.setAttribute('aria-expanded', String(open));
+            btn.setAttribute('aria-label', open ? 'Close projects' : 'Open projects');
+        }
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
+            syncSidebarToggle();
         }
         function closeSidebarMobile() {
             if (window.matchMedia('(max-width: 1023px)').matches) {
                 document.getElementById('sidebar').classList.remove('open');
+                syncSidebarToggle();
             }
         }
 
