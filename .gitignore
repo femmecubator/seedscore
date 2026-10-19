@@ -1,0 +1,7 @@
+# Vendored Formulize / ImpressCMS install — kept locally, never committed
+formulize/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
